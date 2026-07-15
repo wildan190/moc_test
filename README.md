@@ -48,7 +48,7 @@ Masuk ke direktori `backend-restaurant`:
 ```bash
 cd backend-restaurant
 ```
-**Opsi A: Dengan Docker (Mudah)**
+**Opsi A: Dengan Docker**
 ```bash
 docker compose -f docker-local-compose.yml up --build
 ```
