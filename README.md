@@ -28,6 +28,9 @@ Klik ganda pada file `start.bat` di folder utama ini, atau buka Command Prompt /
 ```cmd
 start.bat
 ```
+```cmd
+.\start.bat
+```
 
 ### Opsi pada Script Interaktif:
 1. **Menggunakan Docker (Direkomendasikan)**: 
