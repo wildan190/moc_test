@@ -75,6 +75,22 @@ php artisan serve
 Buka tab terminal baru dan masuk ke direktori `frontend-restaurant`:
 ```bash
 cd frontend-restaurant
+```
+
+> **Penting:** Pastikan Anda mengatur `NEXT_PUBLIC_API_URL` di dalam file `frontend-restaurant/.env` sesuai dengan cara Anda menjalankan backend.
+> 
+> **Jika Backend menggunakan Docker:**
+> ```env
+> NEXT_PUBLIC_API_URL="http://localhost/api"
+> ```
+> 
+> **Jika Backend dijalankan secara manual (Tanpa Docker):**
+> ```env
+> NEXT_PUBLIC_API_URL="http://localhost:8000/api"
+> ```
+
+Kemudian jalankan aplikasi:
+```bash
 npm install
 npm run dev
 ```
