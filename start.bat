@@ -26,7 +26,7 @@ start cmd /k "docker compose -f docker-local-compose.yml up --build"
 echo Menunggu container siap sebelum generate key...
 timeout /t 5 /nobreak >nul
 docker compose -f docker-local-compose.yml exec -T app php artisan key:generate
-docker compose -f docker-local-compose.yml exec -T app php artisan db:seed
+docker compose -f docker-local-compose.yml exec -T app php artisan migrate --seed
 cd ..
 
 echo.

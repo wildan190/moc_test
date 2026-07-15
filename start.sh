@@ -22,7 +22,7 @@ case $choice in
     echo "Menghasilkan Application Key (jika diperlukan)..."
     sleep 5
     docker compose -f docker-local-compose.yml exec -T app php artisan key:generate
-    docker compose -f docker-local-compose.yml exec -T app php artisan db:seed
+    docker compose -f docker-local-compose.yml exec -T app php artisan migrate --seed
     # Catatan: Migrasi otomatis dijalankan via entrypoint.sh di Docker
     cd ..
     
