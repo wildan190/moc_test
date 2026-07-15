@@ -1,0 +1,68 @@
+version: "3.9"
+
+services:
+
+  app:
+    build: .
+    container_name: laravel_app
+
+    volumes:
+      - .:/var/www
+
+    ports:
+      - "9000:9000"
+
+    env_file:
+      - .env
+
+    depends_on:
+      - postgres
+      - redis
+
+  nginx:
+
+    image: nginx:latest
+
+    container_name: nginx
+
+    ports:
+      - "80:80"
+
+    volumes:
+      - .:/var/www
+      - ./nginx/nginx.dev.conf:/etc/nginx/conf.d/default.conf
+
+    depends_on:
+      - app
+
+  postgres:
+
+    image: postgres:17
+
+    container_name: postgres
+
+    restart: always
+
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: manchester
+      POSTGRES_DB: db_moc
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+
+    image: redis:7-alpine
+
+    container_name: redis
+
+    ports:
+      - "6379:6379"
+
+volumes:
+
+  postgres_data:

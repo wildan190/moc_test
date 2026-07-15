@@ -1,0 +1,118 @@
+name: CI/CD Pipeline - Restaurant Queue System
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # =============================================================
+  # BACKEND: Install, Test
+  # =============================================================
+  backend-test:
+    name: Backend Tests (Laravel)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: root
+          POSTGRES_PASSWORD: manchester
+          POSTGRES_DB: db_moc_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP 8.4
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: pdo, pdo_pgsql, pgsql, redis, zip, bcmath, gd, intl
+          coverage: none
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+        working-directory: backend-restaurant
+
+      - name: Copy environment file
+        run: cp .env.example .env
+        working-directory: backend-restaurant
+
+      - name: Generate app key
+        run: php artisan key:generate
+        working-directory: backend-restaurant
+
+      - name: Run Database Migrations
+        run: php artisan migrate --force
+        working-directory: backend-restaurant
+        env:
+          APP_ENV: testing
+          DB_CONNECTION: pgsql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_DATABASE: db_moc_test
+          DB_USERNAME: root
+          DB_PASSWORD: manchester
+
+      - name: Run backend tests (PostgreSQL)
+        run: php artisan test
+        working-directory: backend-restaurant
+        env:
+          APP_ENV: testing
+          DB_CONNECTION: pgsql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_DATABASE: db_moc_test
+          DB_USERNAME: root
+          DB_PASSWORD: manchester
+          QUEUE_CONNECTION: sync
+          CACHE_STORE: array
+          SESSION_DRIVER: array
+
+  # =============================================================
+  # FRONTEND: Install, Test, Build
+  # =============================================================
+  frontend-test-build:
+    name: Frontend Tests & Build (Next.js)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend-restaurant/package-lock.json
+
+      - name: Install NPM dependencies
+        run: npm ci
+        working-directory: frontend-restaurant
+
+      - name: Run frontend unit tests (Vitest)
+        run: npm run test
+        working-directory: frontend-restaurant
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost/api
+
+      - name: Build frontend
+        run: npm run build
+        working-directory: frontend-restaurant
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost/api
+          BETTER_AUTH_SECRET: ci-secret-for-build
+          BETTER_AUTH_URL: http://localhost:3000
+          NEXT_PUBLIC_APP_URL: http://localhost:3000
+          DATABASE_URL: postgresql://root:manchester@localhost:5432/db_moc
