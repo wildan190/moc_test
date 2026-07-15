@@ -22,11 +22,16 @@ case $choice in
     echo "Menghasilkan Application Key (jika diperlukan)..."
     sleep 5
     docker compose -f docker-local-compose.yml exec -T app php artisan key:generate
+    docker compose -f docker-local-compose.yml exec -T app php artisan db:seed
     # Catatan: Migrasi otomatis dijalankan via entrypoint.sh di Docker
     cd ..
     
     echo "Menjalankan Frontend (npm run dev)..."
     cd frontend-restaurant || exit
+    if [ ! -f .env ]; then
+      cp .env.example .env
+      echo "File .env untuk frontend berhasil dibuat dari .env.example"
+    fi
     npm install
     npm run dev
     ;;
@@ -40,12 +45,17 @@ case $choice in
     composer install
     php artisan key:generate
     php artisan migrate
+    php artisan db:seed
     php artisan serve &
     BACKEND_PID=$!
     cd ..
     
     echo "Menjalankan Frontend (npm run dev)..."
     cd frontend-restaurant || exit
+    if [ ! -f .env ]; then
+      cp .env.example .env
+      echo "File .env untuk frontend berhasil dibuat dari .env.example"
+    fi
     npm install
     npm run dev
     

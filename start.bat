@@ -26,11 +26,16 @@ start cmd /k "docker compose -f docker-local-compose.yml up --build"
 echo Menunggu container siap sebelum generate key...
 timeout /t 5 /nobreak >nul
 docker compose -f docker-local-compose.yml exec -T app php artisan key:generate
+docker compose -f docker-local-compose.yml exec -T app php artisan db:seed
 cd ..
 
 echo.
 echo Menjalankan Frontend...
 cd frontend-restaurant
+if not exist .env (
+    copy .env.example .env
+    echo File .env frontend berhasil dibuat dari .env.example
+)
 call npm install
 call npm run dev
 goto end
@@ -46,12 +51,17 @@ if not exist .env (
 call composer install
 call php artisan key:generate
 call php artisan migrate
+call php artisan db:seed
 start cmd /k "php artisan serve"
 cd ..
 
 echo.
 echo Menjalankan Frontend...
 cd frontend-restaurant
+if not exist .env (
+    copy .env.example .env
+    echo File .env frontend berhasil dibuat dari .env.example
+)
 call npm install
 call npm run dev
 goto end
