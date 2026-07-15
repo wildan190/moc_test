@@ -49,6 +49,16 @@ Masuk ke direktori `backend-restaurant`:
 cd backend-restaurant
 ```
 **Opsi A: Dengan Docker**
+> **Penting:** Jika menggunakan Docker, pastikan Anda mengatur bagian koneksi database di file `backend-restaurant/.env` dengan nilai berikut:
+> ```env
+> DB_CONNECTION=pgsql
+> DB_HOST=postgres
+> DB_PORT=5432
+> DB_DATABASE=db_moc
+> DB_USERNAME=root
+> DB_PASSWORD=manchester
+> ```
+
 ```bash
 docker compose -f docker-local-compose.yml up --build
 ```
