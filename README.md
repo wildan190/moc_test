@@ -56,6 +56,7 @@ docker compose -f docker-local-compose.yml up --build
 Pastikan `.env` sudah diatur dan database/Redis lokal menyala.
 ```bash
 composer install
+php artisan key:generate
 php artisan migrate
 php artisan serve
 ```
