@@ -15,12 +15,14 @@ class QueueMember extends Model
         'seated_at',
         'completed_at',
         'eating_time_minutes',
+        'pre_orders',
     ];
 
     protected $casts = [
         'joined_at' => 'datetime',
         'seated_at' => 'datetime',
         'completed_at' => 'datetime',
+        'pre_orders' => 'array',
     ];
 
     public function table(): HasOne

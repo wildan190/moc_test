@@ -17,6 +17,7 @@ class Table extends Model
         'queue_member_id',
         'started_at',
         'eating_time_minutes',
+        'merged_with',
     ];
 
     protected $casts = [

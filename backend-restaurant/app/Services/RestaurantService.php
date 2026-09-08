@@ -41,9 +41,11 @@ class RestaurantService
     {
         $vacantTables = $this->tableRepository->getVacantTables();
 
-        return $vacantTables->filter(function ($table) use ($partySize) {
-            return $table->capacity >= $partySize;
-        })->first();
+        // Cari meja yang kapasitasnya cukup, diurutkan dari selisih kapasitas terkecil (paling optimal)
+        return $vacantTables
+            ->filter(fn ($table) => $table->capacity >= $partySize && $table->status === 'vacant')
+            ->sortBy(fn ($table) => $table->capacity - $partySize)
+            ->first();
     }
 
     /**
