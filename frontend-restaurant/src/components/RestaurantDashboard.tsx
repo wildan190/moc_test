@@ -1,7 +1,11 @@
 "use client";
 
 import React, { useEffect, useState, useTransition } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
+import { playChime, speakQueueCall } from "@/lib/sound";
+import { usePieSocket } from "@/lib/usePieSocket";
+import AnalyticsSection from "@/components/AnalyticsSection";
 import {
   Table,
   TableBody,
@@ -241,6 +245,10 @@ export default function RestaurantDashboard() {
     { key: "completed_at", dir: "desc" },
   ]);
 
+  const [activeTab, setActiveTab] = useState<"floor" | "analytics">("floor");
+  const [audioEnabled, setAudioEnabled] = useState(true);
+  const [ticketModalCustomer, setTicketModalCustomer] = useState<{ id: number; name: string } | null>(null);
+
   const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost/api";
 
   const fetchAll = async () => {
@@ -255,14 +263,28 @@ export default function RestaurantDashboard() {
         setQueue(d.queue ?? []);
       }
       if (histRes.ok) {
-        setHistory(await histRes.json() ?? []);
+        setHistory((await histRes.json()) ?? []);
       }
     } catch {}
   };
 
+  // PieSocket Real-Time listener
+  const { isConnected: isWsConnected } = usePieSocket({
+    onMessage: (msg) => {
+      fetchAll();
+      if (msg.event === "table_seated" && audioEnabled) {
+        const customerName = (msg.data.customer_name as string) || "Pelanggan";
+        const tableId = (msg.data.table_id as string) || "Meja";
+        speakQueueCall(customerName, tableId);
+      } else if (msg.event === "queue_arrived" && audioEnabled) {
+        playChime();
+      }
+    },
+  });
+
   useEffect(() => {
     fetchAll();
-    const id = setInterval(fetchAll, 5_000);
+    const id = setInterval(fetchAll, 6_000);
     return () => clearInterval(id);
   }, []);
 
@@ -372,22 +394,100 @@ export default function RestaurantDashboard() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-dark dark:text-white">Dashboard Antrean Restoran</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Kelola meja dan antrean pelanggan secara real-time</p>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-black text-dark dark:text-white">Dashboard Antrean Restoran</h1>
+            <span
+              className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
+                isWsConnected
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800"
+                  : "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800"
+              }`}
+            >
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${
+                  isWsConnected ? "bg-emerald-500 animate-pulse" : "bg-amber-500"
+                }`}
+              />
+              {isWsConnected ? "PieSocket Live" : "Polling"}
+            </span>
+          </div>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            Kelola meja dan antrean pelanggan secara real-time dengan sinkronisasi WebSockets
+          </p>
         </div>
-        <div className="flex gap-3">
-          {[
-            { n: vacant,       label: "Kosong",       bg: "#d1fae5", border: "#6ee7b7", color: "#065f46" },
-            { n: dining,       label: "Terisi",        bg: "#dbeafe", border: "#93c5fd", color: "#1e40af" },
-            { n: queue.length, label: "Antrean",       bg: "#ede9fe", border: "#c4b5fd", color: "#4c1d95" },
-          ].map(({ n, label, bg, border, color }) => (
-            <div key={label} style={{ textAlign: "center", padding: "8px 16px", borderRadius: 12, background: bg, border: `1px solid ${border}` }}>
-              <p style={{ fontSize: 22, fontWeight: 900, color, lineHeight: 1 }}>{n}</p>
-              <p style={{ fontSize: 10, color, fontWeight: 600, marginTop: 2 }}>{label}</p>
-            </div>
-          ))}
+
+        <div className="flex items-center gap-3">
+          {/* Audio Announcer Toggle Button */}
+          <button
+            type="button"
+            onClick={() => setAudioEnabled(!audioEnabled)}
+            className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold border transition ${
+              audioEnabled
+                ? "bg-primary/10 border-primary/30 text-primary hover:bg-primary/20"
+                : "bg-gray-100 border-gray-300 text-gray-500 dark:bg-dark-2 dark:border-dark-3"
+            }`}
+            title="Klik untuk menyalakan/mematikan suara panggilan antrean"
+          >
+            <span>{audioEnabled ? "🔊 Suara: Aktif" : "🔇 Suara: Senyap"}</span>
+          </button>
+
+          <div className="flex gap-2">
+            {[
+              { n: vacant, label: "Kosong", bg: "#d1fae5", border: "#6ee7b7", color: "#065f46" },
+              { n: dining, label: "Terisi", bg: "#dbeafe", border: "#93c5fd", color: "#1e40af" },
+              { n: queue.length, label: "Antrean", bg: "#ede9fe", border: "#c4b5fd", color: "#4c1d95" },
+            ].map(({ n, label, bg, border, color }) => (
+              <div
+                key={label}
+                style={{
+                  textAlign: "center",
+                  padding: "6px 14px",
+                  borderRadius: 12,
+                  background: bg,
+                  border: `1px solid ${border}`,
+                }}
+              >
+                <p style={{ fontSize: 20, fontWeight: 900, color, lineHeight: 1 }}>{n}</p>
+                <p style={{ fontSize: 10, color, fontWeight: 600, marginTop: 2 }}>{label}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
+
+      {/* Tabs Switcher: Denah Lantai vs Smart Analytics */}
+      <div className="flex border-b border-gray-200 dark:border-dark-3 gap-6">
+        <button
+          type="button"
+          onClick={() => setActiveTab("floor")}
+          className={`pb-3 text-sm font-bold transition border-b-2 ${
+            activeTab === "floor"
+              ? "border-primary text-primary"
+              : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400"
+          }`}
+        >
+          Denah Restoran & Antrean
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("analytics")}
+          className={`pb-3 text-sm font-bold transition border-b-2 flex items-center gap-2 ${
+            activeTab === "analytics"
+              ? "border-primary text-primary"
+              : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400"
+          }`}
+        >
+          <span>Smart Analytics & Insight</span>
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-extrabold uppercase">
+            Baru
+          </span>
+        </button>
+      </div>
+
+      {activeTab === "analytics" ? (
+        <AnalyticsSection history={history} tables={tables} />
+      ) : (
+        <>
 
       {/* Legend */}
       <div className="flex flex-wrap gap-4">
@@ -507,9 +607,22 @@ export default function RestaurantDashboard() {
                       <p className="text-xs text-gray-400 mt-0.5">{new Date(m.joined_at).toLocaleTimeString()}</p>
                     </div>
                   </div>
-                  <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 9999, fontWeight: 700, background: "#ede9fe", color: "#5b21b6" }}>
-                    {m.party_size} org
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setTicketModalCustomer({ id: m.id, name: m.customer_name });
+                      }}
+                      className="text-[11px] px-2.5 py-1 rounded-lg border border-primary/20 bg-primary/5 hover:bg-primary/10 text-primary font-bold transition flex items-center gap-1"
+                      title="Buka Tiket Antrean / QR Code"
+                    >
+                      <span>Tiket #{m.id}</span>
+                    </button>
+                    <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 9999, fontWeight: 700, background: "#ede9fe", color: "#5b21b6" }}>
+                      {m.party_size} org
+                    </span>
+                  </div>
                 </div>
               ))}
             </div>
@@ -606,6 +719,74 @@ export default function RestaurantDashboard() {
           </TableBody>
         </Table>
       </div>
+      </>
+      )}
+
+      {/* QR Ticket Modal Dialog */}
+      {ticketModalCustomer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-gray-dark border border-neutral-200 dark:border-dark-3 rounded-3xl p-6 w-full max-w-sm shadow-2xl relative">
+            <div className="flex justify-between items-center pb-3 border-b border-neutral-100 dark:border-dark-3 mb-4">
+              <div>
+                <h3 className="font-bold text-base text-dark dark:text-white">
+                  Tiket Antrean #{ticketModalCustomer.id}
+                </h3>
+                <p className="text-xs text-gray-400">Atas nama: {ticketModalCustomer.name}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setTicketModalCustomer(null)}
+                className="w-8 h-8 rounded-full bg-neutral-100 dark:bg-dark-2 text-gray-500 hover:text-dark dark:hover:text-white flex items-center justify-center font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="text-center py-4">
+              {/* QR Code Image via free API */}
+              <div className="inline-block p-3 bg-white rounded-2xl border border-neutral-200 shadow-sm mb-4">
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(
+                    typeof window !== "undefined"
+                      ? `${window.location.origin}/queue/${ticketModalCustomer.id}`
+                      : `http://localhost:3000/queue/${ticketModalCustomer.id}`
+                  )}`}
+                  alt="QR Code Tiket Antrean"
+                  width={180}
+                  height={180}
+                  className="rounded-lg"
+                />
+              </div>
+
+              <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed mb-4">
+                Scan QR Code ini menggunakan smartphone untuk memantau status antrean dan estimasi waktu secara langsung.
+              </p>
+
+              <div className="flex gap-2">
+                <Link
+                  href={`/queue/${ticketModalCustomer.id}`}
+                  target="_blank"
+                  className="flex-1 py-2.5 px-4 rounded-xl bg-primary hover:bg-primary/90 text-white text-xs font-bold text-center transition"
+                >
+                  Buka Halaman Tiket ↗
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const url = `${window.location.origin}/queue/${ticketModalCustomer.id}`;
+                    navigator.clipboard.writeText(url);
+                    toast.success("Link tiket berhasil disalin!");
+                  }}
+                  className="py-2.5 px-3 rounded-xl border border-neutral-200 dark:border-dark-3 text-xs font-bold text-dark dark:text-white hover:bg-neutral-50 dark:hover:bg-dark-2"
+                >
+                  Salin Link
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

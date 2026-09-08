@@ -53,4 +53,26 @@ class QueueController extends Controller
         $history = $action->execute();
         return response()->json($history);
     }
+
+    public function ticket(int $id): JsonResponse
+    {
+        $customer = \App\Models\QueueMember::with('table')->find($id);
+        if (!$customer) {
+            return response()->json(['message' => 'Tiket antrean tidak ditemukan'], 404);
+        }
+
+        // Hitung posisi antrean di depan pelanggan jika masih waiting
+        $aheadCount = 0;
+        if ($customer->status === 'waiting') {
+            $aheadCount = \App\Models\QueueMember::where('status', 'waiting')
+                ->where('joined_at', '<', $customer->joined_at)
+                ->count();
+        }
+
+        return response()->json([
+            'customer' => $customer,
+            'ahead_count' => $aheadCount,
+            'estimated_wait_minutes' => max(5, $aheadCount * 12),
+        ]);
+    }
 }

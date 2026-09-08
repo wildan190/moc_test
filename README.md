@@ -1,5 +1,7 @@
 # Restaurant Application (MOC Test)
 
+Developer Name : Muhamad Asep Wildan Muholadun
+Position Applied : Fullstack Developer
 Ini adalah aplikasi manajemen restoran yang terdiri dari Backend API dan Frontend antarmuka pengguna.
 
 ## Struktur Folder
@@ -63,7 +65,14 @@ cd backend-restaurant
 > ```
 
 ```bash
-docker compose -f docker-local-compose.yml up --build
+docker compose -f docker-local-compose.yml up --build -d
+```
+Karena Anda menjalankannya secara manual menggunakan Docker, Anda perlu masuk ke eksekusi container untuk melakukan setup awal:
+```bash
+docker compose -f docker-local-compose.yml exec app composer install
+docker compose -f docker-local-compose.yml exec app php artisan key:generate
+docker compose -f docker-local-compose.yml exec app php artisan migrate
+docker compose -f docker-local-compose.yml exec app php artisan db:seed
 ```
 **Opsi B: Tanpa Docker**
 Pastikan `.env` sudah diatur dan database/Redis lokal menyala.

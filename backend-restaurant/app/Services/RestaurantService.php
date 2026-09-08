@@ -12,13 +12,16 @@ class RestaurantService
 {
     protected TableRepositoryInterface $tableRepository;
     protected QueueRepositoryInterface $queueRepository;
+    protected PieSocketService $pieSocketService;
 
     public function __construct(
         TableRepositoryInterface $tableRepository,
-        QueueRepositoryInterface $queueRepository
+        QueueRepositoryInterface $queueRepository,
+        PieSocketService $pieSocketService
     ) {
         $this->tableRepository = $tableRepository;
         $this->queueRepository = $queueRepository;
+        $this->pieSocketService = $pieSocketService;
     }
 
     /**
@@ -61,6 +64,14 @@ class RestaurantService
         $table->eating_time_minutes = $eatingTime;
         $this->tableRepository->save($table);
 
+        $this->pieSocketService->broadcast('table_seated', [
+            'table_id' => $table->id,
+            'customer_name' => $customer->customer_name,
+            'party_size' => $customer->party_size,
+            'queue_member_id' => $customer->id,
+            'eating_time_minutes' => $eatingTime,
+        ]);
+
         return $table;
     }
 
@@ -83,9 +94,12 @@ class RestaurantService
      */
     public function completeDining(Table $table): void
     {
+        $freedTableId = $table->id;
+        $customerName = null;
         if ($table->queue_member_id) {
             $customer = $this->queueRepository->find($table->queue_member_id);
             if ($customer) {
+                $customerName = $customer->customer_name;
                 $customer->status = 'served';
                 $customer->completed_at = Carbon::now();
                 $this->queueRepository->save($customer);
@@ -97,6 +111,11 @@ class RestaurantService
         $table->started_at = null;
         $table->eating_time_minutes = null;
         $this->tableRepository->save($table);
+
+        $this->pieSocketService->broadcast('table_served', [
+            'table_id' => $freedTableId,
+            'customer_name' => $customerName,
+        ]);
 
         $this->processWaitingQueue();
     }

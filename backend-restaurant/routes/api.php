@@ -7,3 +7,4 @@ Route::get('/status', [QueueController::class, 'status']);
 Route::post('/serve', [QueueController::class, 'serve']);
 Route::post('/seat', [QueueController::class, 'seat']);
 Route::get('/history', [QueueController::class, 'history']);
+Route::get('/queue/{id}', [QueueController::class, 'ticket']);
