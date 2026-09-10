@@ -14,7 +14,7 @@ class ServeRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'table_id' => 'required|string|in:A,B,C,D',
+            'table_id' => 'required|string|exists:tables,id',
         ];
     }
 }
