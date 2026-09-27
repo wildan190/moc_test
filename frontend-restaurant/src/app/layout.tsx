@@ -13,14 +13,14 @@ import { Providers } from "./providers";
 export const metadata: Metadata = {
   title: {
     template: "%s | MOC Test",
-    default: "MOC Test — Restaurant Queue Dashboard",
+    default: "PADA — Restaurant POS & Operations",
   },
-  description: "Dashboard manajemen antrean restoran secara real-time.",
+  description: "Kasir restoran, inventaris, loyalti pelanggan, reservasi, dan dashboard operasional.",
 };
 
 export default function RootLayout({ children }: PropsWithChildren) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="id" suppressHydrationWarning>
       <body>
         <Providers>
           <NextTopLoader color="#5750F1" showSpinner={false} />

@@ -28,6 +28,12 @@ export const NAV_DATA: NavSection[] = [
         icon: Icons.HomeIcon,
         items: [],
       },
+      {
+        title: "Kasir POS",
+        url: "/pos",
+        icon: Icons.Table,
+        items: [],
+      },
     ],
   },
 ];

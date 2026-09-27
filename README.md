@@ -107,3 +107,15 @@ npm install
 npm run dev
 ```
 Aplikasi frontend akan dapat diakses pada browser di `http://localhost:3000` (atau port lain jika 3000 sudah digunakan).
+
+## Modul Kasir POS
+
+Buka `http://localhost:3000/pos` setelah backend dan frontend aktif. Modul POS memakai database Laravel yang sama dengan aplikasi antrean.
+
+- Migrasikan tabel POS dan isi katalog awal, outlet Jakarta/Bandung, meja reservasi, serta contoh produk dengan `php artisan migrate --seed` dari `backend-restaurant` (untuk Docker gunakan `docker compose -f docker-local-compose.yml exec app php artisan migrate --seed`).
+- Aktifkan URL foto menu dengan `php artisan storage:link` di backend (untuk Docker: `docker compose -f docker-local-compose.yml exec app php artisan storage:link`).
+- Atur `NEXT_PUBLIC_API_URL` frontend mengikuti alamat API di atas. Outlet dan produk baru dikelola melalui halaman POS.
+- Transaksi mengurangi stok di backend dalam satu transaksi database. Poin pelanggan bertambah 1 poin per Rp10.000 setelah checkout berhasil.
+- Reservasi berlangsung 90 menit. Sistem menampilkan meja sesuai kapasitas dan memeriksa ulang tabrakan jadwal di backend sebelum menyimpan.
+
+Metode pembayaran yang dicatat POS adalah tunai, QRIS, kartu, dan transfer. Integrasi pemrosesan pembayaran eksternal dan pencetakan struk fisik memerlukan perangkat/penyedia masing-masing.

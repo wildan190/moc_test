@@ -1,6 +1,19 @@
 <?php
 
 use App\Http\Controllers\QueueController;
+use App\Http\Controllers\PosController;
+
+Route::get('/pos/outlets', [PosController::class, 'outlets']);
+Route::get('/pos/products', [PosController::class, 'products']);
+Route::post('/pos/products', [PosController::class, 'storeProduct']);
+Route::patch('/pos/products/{id}', [PosController::class, 'updateProduct']);
+Route::post('/pos/checkout', [PosController::class, 'checkout']);
+Route::get('/pos/sales', [PosController::class, 'sales']);
+Route::get('/pos/customers', [PosController::class, 'customers']);
+Route::post('/pos/customers', [PosController::class, 'storeCustomer']);
+Route::get('/pos/reservations', [PosController::class, 'reservations']);
+Route::get('/pos/spaces', [PosController::class, 'spaces']);
+Route::post('/pos/reservations', [PosController::class, 'storeReservation']);
 
 Route::post('/arrive', [QueueController::class, 'arrive']);
 Route::get('/status', [QueueController::class, 'status']);
