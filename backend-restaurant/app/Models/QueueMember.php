@@ -16,6 +16,8 @@ class QueueMember extends Model
         'completed_at',
         'eating_time_minutes',
         'pre_orders',
+        'source',
+        'reservation_id',
     ];
 
     protected $casts = [

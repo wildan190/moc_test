@@ -112,7 +112,7 @@ Aplikasi frontend akan dapat diakses pada browser di `http://localhost:3000` (at
 
 Buka `http://localhost:3000/pos` setelah backend dan frontend aktif. Modul POS memakai database Laravel yang sama dengan aplikasi antrean.
 
-- Migrasikan tabel POS dan isi katalog awal, outlet Jakarta/Bandung, meja reservasi, serta contoh produk dengan `php artisan migrate --seed` dari `backend-restaurant` (untuk Docker gunakan `docker compose -f docker-local-compose.yml exec app php artisan migrate --seed`).
+- Migrasikan tabel POS dan isi katalog awal, outlet Jakarta/Bandung, meja reservasi, serta contoh produk dengan `php artisan migrate --seed` dari `backend-restaurant` (untuk Docker gunakan `docker compose -f docker-local-compose.yml exec app php artisan migrate --seed`). Jika konfigurasi sebelumnya dicache, jalankan `php artisan config:clear` setelah memperbarui zona waktu aplikasi.
 - Aktifkan URL foto menu dengan `php artisan storage:link` di backend (untuk Docker: `docker compose -f docker-local-compose.yml exec app php artisan storage:link`).
 - Atur `NEXT_PUBLIC_API_URL` frontend mengikuti alamat API di atas. Outlet dan produk baru dikelola melalui halaman POS.
 - Transaksi mengurangi stok di backend dalam satu transaksi database. Poin pelanggan bertambah 1 poin per Rp10.000 setelah checkout berhasil.

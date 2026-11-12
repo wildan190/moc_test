@@ -12,8 +12,9 @@ class PosSeeder extends Seeder
         DB::table('pos_outlets')->updateOrInsert(['id' => 'outlet-jakarta'], ['name' => 'PADA Jakarta', 'address' => 'Jakarta', 'active' => true, 'updated_at' => now(), 'created_at' => now()]);
         DB::table('pos_outlets')->updateOrInsert(['id' => 'outlet-bandung'], ['name' => 'PADA Bandung', 'address' => 'Bandung', 'active' => true, 'updated_at' => now(), 'created_at' => now()]);
         foreach (['outlet-jakarta', 'outlet-bandung'] as $outletId) {
-            foreach ([['Meja 1', 2], ['Meja 2', 4], ['Meja 3', 4], ['Meja 4', 6], ['Ruang keluarga', 10]] as [$name, $capacity]) {
-                DB::table('pos_reservation_spaces')->updateOrInsert(['outlet_id' => $outletId, 'name' => $name], ['capacity' => $capacity, 'active' => true, 'updated_at' => now(), 'created_at' => now()]);
+            foreach ([['A', 2], ['B', 4], ['C', 6], ['D', 8]] as [$tableId, $capacity]) {
+                $name = "Meja {$tableId}";
+                DB::table('pos_reservation_spaces')->updateOrInsert(['outlet_id' => $outletId, 'name' => $name], ['table_id' => $tableId, 'capacity' => $capacity, 'active' => true, 'updated_at' => now(), 'created_at' => now()]);
             }
         }
         $products = [

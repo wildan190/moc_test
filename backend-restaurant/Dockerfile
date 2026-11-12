@@ -2,7 +2,7 @@ FROM php:8.4-fpm
 
 LABEL maintainer="Laravel"
 
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     curl \
     unzip \
@@ -29,11 +29,14 @@ RUN apt-get update && apt-get install -y \
         bcmath \
         exif \
         pcntl \
-        gd
+        gd \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Install Redis Extension
 RUN pecl install redis \
-    && docker-php-ext-enable redis
+    && docker-php-ext-enable redis \
+    && rm -rf /tmp/pear
 
 # Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer

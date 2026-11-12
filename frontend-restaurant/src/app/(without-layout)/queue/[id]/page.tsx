@@ -1,9 +1,36 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import React, { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { usePieSocket } from "@/lib/usePieSocket";
+import {
+  Card,
+  Tabs,
+  Tag,
+  Typography,
+  Space,
+  Button,
+  Statistic,
+  Row,
+  Col,
+  Input,
+  Badge,
+  Spin,
+  Result,
+  Divider,
+  Empty,
+} from "antd";
+import {
+  ClockCircleOutlined,
+  UsergroupAddOutlined,
+  CheckCircleOutlined,
+  ShoppingOutlined,
+  ArrowLeftOutlined,
+  InboxOutlined,
+} from "@ant-design/icons";
+
+const { Title, Text, Paragraph } = Typography;
 
 interface MenuItem {
   id: number;
@@ -56,7 +83,7 @@ export default function PublicQueueTicketPage({
   const [error, setError] = useState<string | null>(null);
 
   // Pre-Order State
-  const [activeTab, setActiveTab] = useState<"ticket" | "preorder">("ticket");
+  const [activeTab, setActiveTab] = useState<string>("ticket");
   const [menuList, setMenuList] = useState<MenuItem[]>([]);
   const [cart, setCart] = useState<Record<number, number>>({});
   const [orderNotes, setOrderNotes] = useState("");
@@ -108,8 +135,7 @@ export default function PublicQueueTicketPage({
     return () => clearInterval(timer);
   }, [ticketId]);
 
-  // Listen PieSocket Real-Time event
-  const { isConnected } = usePieSocket({
+  usePieSocket({
     onMessage: (msg) => {
       if (
         msg.event === "table_seated" ||
@@ -167,7 +193,9 @@ export default function PublicQueueTicketPage({
         body: JSON.stringify({ items, notes: orderNotes }),
       });
       if (res.ok) {
-        toast.success("Pre-order berhasil disimpan! Dapur akan menyiapkan saat Anda duduk.");
+        toast.success(
+          "Pre-order berhasil disimpan! Dapur akan menyiapkan saat Anda duduk."
+        );
         fetchTicket();
         setActiveTab("ticket");
       } else {
@@ -182,26 +210,32 @@ export default function PublicQueueTicketPage({
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      <div
+        style={{
+          minHeight: "80vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Spin size="large" tip="Memuat status tiket antrean..." />
       </div>
     );
   }
 
   if (error || !ticket) {
     return (
-      <div className="min-h-screen bg-slate-900 text-white flex flex-col items-center justify-center p-6 text-center">
-        <div className="w-16 h-16 rounded-full bg-red-900 text-red-400 flex items-center justify-center text-2xl font-bold mb-4">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </div>
-        <h1 className="text-xl font-bold mb-2">Tiket Tidak Ditemukan</h1>
-        <p className="text-gray-400 text-sm max-w-sm mb-6">{error ?? "Pastikan nomor tiket antrean sudah benar."}</p>
-        <Link
-          href="/"
-          className="px-5 py-2.5 rounded-xl bg-primary hover:bg-blue-700 text-white text-sm font-bold transition"
-        >
-          Kembali ke Beranda
-        </Link>
+      <div style={{ maxWidth: 460, margin: "60px auto" }}>
+        <Result
+          status="404"
+          title="Tiket Tidak Ditemukan"
+          subTitle={error ?? "Pastikan tautan atau nomor tiket Anda sudah benar."}
+          extra={
+            <Link href="/">
+              <Button type="primary">Kembali ke Beranda</Button>
+            </Link>
+          }
+        />
       </div>
     );
   }
@@ -209,251 +243,325 @@ export default function PublicQueueTicketPage({
   const { customer, ahead_count, estimated_wait_minutes } = ticket;
   const isSeated = customer.status === "seated";
   const isServed = customer.status === "served";
-  const isWaiting = customer.status === "waiting";
-  const hasPreOrders = customer.pre_orders?.items && customer.pre_orders.items.length > 0;
+  const isCancelled = customer.status === "cancelled";
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-white flex flex-col items-center p-4 sm:p-6 pb-20">
-      {/* Real-Time Live Status Pill */}
-      <div className="mb-4 flex items-center gap-2 px-3 py-1 rounded-full bg-slate-800 border border-slate-700 text-xs text-gray-300 shadow-sm">
-        <span
-          className={`w-2 h-2 rounded-full ${
-            isConnected ? "bg-emerald-400 animate-pulse" : "bg-amber-400"
-          }`}
-        />
-        {isConnected ? "Live Real-Time (PieSocket Active)" : "Sinkronisasi Otomatis"}
+    <div style={{ maxWidth: 540, margin: "0 auto", paddingBottom: 40 }}>
+      {/* Brand Header */}
+      <div style={{ textAlign: "center", marginBottom: 20 }}>
+        <Title level={3} style={{ margin: 0, color: "#1677ff" }}>
+          PADA Resto
+        </Title>
+        <Text type="secondary" style={{ fontSize: 13 }}>
+          Status Tiket Antrean Pelanggan
+        </Text>
       </div>
 
-      {/* Navigation Pill (Tiket Antrean vs Pre-Order Makanan) */}
-      <div className="flex bg-slate-800 p-1 rounded-2xl border border-slate-700 mb-5 w-full max-w-sm">
-        <button
-          type="button"
-          onClick={() => setActiveTab("ticket")}
-          className={`flex-1 py-2 text-xs font-bold rounded-xl transition ${
-            activeTab === "ticket"
-              ? "bg-primary text-white shadow-md"
-              : "text-gray-400 hover:text-white"
-          }`}
-        >
-          Status Antrean
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab("preorder")}
-          className={`flex-1 py-2 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5 ${
-            activeTab === "preorder"
-              ? "bg-primary text-white shadow-md"
-              : "text-gray-400 hover:text-white"
-          }`}
-        >
-          <span>Pesan Makanan</span>
-          {hasPreOrders && (
-            <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-          )}
-        </button>
-      </div>
-
-      {activeTab === "ticket" ? (
-        /* Main Digital Ticket Card */
-        <div className="w-full max-w-sm bg-slate-800 border border-slate-700 rounded-3xl p-6 shadow-2xl relative overflow-hidden">
-          {/* Top Decorative Header */}
-          <div className="text-center pb-5 border-b border-dashed border-slate-700">
-            <span className="text-[10px] uppercase tracking-widest font-black text-primary px-2.5 py-1 bg-blue-900 rounded-full border border-blue-700">
-              Tiket Antrean Restoran
-            </span>
-            <h2 className="text-2xl font-black text-white mt-3">{customer.customer_name}</h2>
-            <p className="text-xs text-gray-400 mt-1">{customer.party_size} Orang (Party)</p>
-          </div>
-
-          {/* Ticket Body / Status Display */}
-          <div className="py-6 text-center">
-            {isWaiting && (
-              <div>
-                <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-2">
-                  Nomor Antrean Anda
-                </p>
-                <div className="inline-flex items-center justify-center w-28 h-28 rounded-3xl bg-blue-900 border-2 border-blue-700 text-primary font-black text-5xl shadow-lg my-2">
-                  #{customer.id}
-                </div>
-
-                <div className="mt-5 grid grid-cols-2 gap-3 bg-slate-900 p-4 rounded-2xl border border-slate-700">
-                  <div>
-                    <p className="text-[10px] text-gray-400 font-medium uppercase">Antrean di Depan</p>
-                    <p className="text-2xl font-black text-amber-400 mt-1">
-                      {ahead_count} <span className="text-xs font-normal text-gray-400">grup</span>
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-gray-400 font-medium uppercase">Estimasi Menunggu</p>
-                    <p className="text-2xl font-black text-emerald-400 mt-1">
-                      ~{estimated_wait_minutes} <span className="text-xs font-normal text-gray-400">mnt</span>
-                    </p>
-                  </div>
-                </div>
-
-                {hasPreOrders && (
-                  <div className="mt-4 p-3 bg-emerald-950 border border-emerald-800 rounded-xl text-left">
-                    <div className="flex items-center justify-between text-xs text-emerald-400 font-bold mb-1">
-                      <span>Makanan Telah Dipilih</span>
-                      <button
-                        onClick={() => setActiveTab("preorder")}
-                        className="underline text-[11px]"
-                      >
-                        Ubah
-                      </button>
-                    </div>
-                    <p className="text-[11px] text-gray-300">
-                      {customer.pre_orders?.items.length} menu siap dimasak begitu Anda duduk di meja.
-                    </p>
-                  </div>
-                )}
-
-                <p className="text-xs text-gray-400 mt-4 leading-relaxed">
-                  Mohon tetap berada di area tunggu. Panggilan meja Anda akan otomatis muncul di sini.
-                </p>
-              </div>
-            )}
-
-            {isSeated && (
-              <div className="animate-in fade-in zoom-in-95 duration-300">
-                <div className="w-20 h-20 rounded-full bg-emerald-900 text-emerald-400 flex items-center justify-center mx-auto mb-4 border-2 border-emerald-700">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                </div>
-                <p className="text-xs text-emerald-400 font-bold tracking-widest uppercase">
-                  Meja Anda Telah Siap!
-                </p>
-                <h3 className="text-3xl font-black text-white mt-2">
-                  Meja {customer.table?.id ?? "Siap"}
-                </h3>
-                <p className="text-sm text-gray-300 mt-2">
-                  Silakan menuju meja Anda dan pesanan Anda sedang disiapkan!
-                </p>
-              </div>
-            )}
-
-            {isServed && (
-              <div>
-                <div className="w-16 h-16 rounded-full bg-blue-900 text-blue-400 flex items-center justify-center mx-auto mb-3">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                </div>
-                <h3 className="text-xl font-bold text-white">Terima Kasih!</h3>
-                <p className="text-xs text-gray-400 mt-2">
-                  Kunjungan Anda telah selesai. Kami menunggu kedatangan Anda berikutnya.
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Action to pre-order banner */}
-          {isWaiting && !hasPreOrders && (
-            <button
-              type="button"
-              onClick={() => setActiveTab("preorder")}
-              className="w-full py-2.5 px-4 mb-4 rounded-xl bg-amber-900 border border-amber-700 text-amber-300 font-bold text-xs flex items-center justify-center gap-2 hover:bg-amber-800 transition">
-              <span>Mau pesan makanan dulu selagi menunggu?</span>
-            </button>
-          )}
-
-          {/* Ticket Footer / Joined timestamp */}
-          <div className="pt-4 border-t border-dashed border-slate-700 flex justify-between items-center text-[11px] text-gray-500">
-            <span>Waktu Masuk:</span>
-            <span>{new Date(customer.joined_at).toLocaleTimeString()}</span>
-          </div>
-        </div>
-      ) : (
-        /* Digital Pre-Order Menu View */
-        <div className="w-full max-w-sm bg-slate-800 border border-slate-700 rounded-3xl p-5 shadow-2xl">
-          <div className="flex justify-between items-center pb-3 border-b border-slate-700 mb-4">
-            <div>
-              <h3 className="font-bold text-base text-white">Menu Pre-Order</h3>
-              <p className="text-xs text-gray-400">Pilih makanan agar cepat disajikan di meja</p>
-            </div>
-            <span className="text-xs px-2.5 py-1 bg-blue-900 text-blue-300 font-extrabold rounded-lg">
-              {Object.values(cart).reduce((a, b) => a + b, 0)} Item
-            </span>
-          </div>
-
-          {/* Menu Items List */}
-          <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
-            {menuList.map((item) => {
-              const qty = cart[item.id] || 0;
-              return (
-                <div
-                  key={item.id}
-                  className="p-3 bg-slate-900 border border-slate-700 rounded-2xl flex items-center justify-between gap-3"
+      <Card
+        variant="borderless"
+        style={{
+          boxShadow: "0 4px 16px rgba(0,0,0,0.06)",
+          borderRadius: 12,
+        }}
+      >
+        <Tabs
+          activeKey={activeTab}
+          onChange={(k) => setActiveTab(k)}
+          centered
+          items={[
+            {
+              key: "ticket",
+              label: "Tiket Antrean",
+              children: (
+                <Space
+                  orientation="vertical"
+                  size="middle"
+                  style={{ width: "100%", marginTop: 8 }}
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-slate-800 rounded-xl text-slate-400">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-white leading-tight">{item.name}</h4>
-                      <p className="text-[11px] font-semibold text-emerald-400 mt-0.5">
-                        Rp {item.price.toLocaleString("id-ID")}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    {qty > 0 && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => handleUpdateQty(item.id, -1)}
-                          className="w-7 h-7 rounded-lg bg-slate-800 text-gray-300 font-bold flex items-center justify-center hover:bg-slate-700"
-                        >
-                          -
-                        </button>
-                        <span className="text-xs font-bold w-4 text-center">{qty}</span>
-                      </>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => handleUpdateQty(item.id, 1)}
-                      className="w-7 h-7 rounded-lg bg-primary text-white font-bold flex items-center justify-center hover:bg-blue-700"
+                  {/* Status Banner */}
+                  <div
+                    style={{
+                      textAlign: "center",
+                      padding: "24px 16px",
+                      background: isSeated
+                        ? "#f6ffed"
+                        : isServed
+                        ? "#f0f5ff"
+                        : isCancelled
+                        ? "#fff1f0"
+                        : "#e6f4ff",
+                      borderRadius: 10,
+                      border: `1px solid ${
+                        isSeated
+                          ? "#b7eb8f"
+                          : isServed
+                          ? "#adc6ff"
+                          : isCancelled
+                          ? "#ffa39e"
+                          : "#91caff"
+                      }`,
+                    }}
+                  >
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      NOMOR TIKET ANTREAN
+                    </Text>
+                    <Title level={1} style={{ margin: "4px 0", color: "#1677ff" }}>
+                      #{customer.id}
+                    </Title>
+                    <Title level={4} style={{ margin: "4px 0" }}>
+                      {customer.customer_name}
+                    </Title>
+                    <Tag
+                      color={
+                        isSeated
+                          ? "success"
+                          : isServed
+                          ? "blue"
+                          : isCancelled
+                          ? "error"
+                          : "processing"
+                      }
+                      style={{ fontSize: 12, padding: "2px 10px", marginTop: 6 }}
                     >
-                      +
-                    </button>
+                      {isSeated
+                        ? `Silakan Duduk di Meja ${customer.table?.id}`
+                        : isServed
+                        ? "Kunjungan Selesai"
+                        : isCancelled
+                        ? "Dibatalkan"
+                        : "Menunggu Giliran Meja"}
+                    </Tag>
                   </div>
-                </div>
-              );
-            })}
-          </div>
 
-          {/* Notes Input */}
-          <div className="mt-4">
-            <label className="block text-[11px] font-semibold text-gray-400 mb-1">
-              Catatan Pesanan (opsional):
-            </label>
-            <input
-              type="text"
-              placeholder="Contoh: Tidak pedas, es dipisah..."
-              value={orderNotes}
-              onChange={(e) => setOrderNotes(e.target.value)}
-              className="w-full text-xs py-2 px-3 rounded-xl bg-slate-900 border border-slate-700 text-white focus:outline-none focus:ring-1 focus:ring-primary"
-            />
-          </div>
+                  {/* Info Row: Ahead & Estimated Wait */}
+                  {!isSeated && !isServed && !isCancelled && (
+                    <Row gutter={16}>
+                      <Col span={12}>
+                        <Card size="small" style={{ textAlign: "center" }}>
+                          <Statistic
+                            title="Antrean di Depan"
+                            value={ahead_count}
+                            suffix="rombongan"
+                            prefix={<UsergroupAddOutlined />}
+                            styles={{ content: { fontSize: 20 } }}
+                          />
+                        </Card>
+                      </Col>
+                      <Col span={12}>
+                        <Card size="small" style={{ textAlign: "center" }}>
+                          <Statistic
+                            title="Estimasi Waktu"
+                            value={estimated_wait_minutes}
+                            suffix="menit"
+                            prefix={<ClockCircleOutlined />}
+                            styles={{ content: { fontSize: 20, color: "#1677ff" } }}
+                          />
+                        </Card>
+                      </Col>
+                    </Row>
+                  )}
 
-          {/* Total & Submit Button */}
-          <div className="mt-4 pt-3 border-t border-slate-700">
-            <div className="flex justify-between items-center mb-3">
-              <span className="text-xs text-gray-400 font-medium">Estimasi Total:</span>
-              <span className="text-base font-black text-emerald-400">
-                Rp {calculateTotal().toLocaleString("id-ID")}
-              </span>
-            </div>
+                  {/* Pre-Order Banner / CTA */}
+                  <Card
+                    size="small"
+                    style={{
+                      background: "#fafafa",
+                      border: "1px dashed #d9d9d9",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                      }}
+                    >
+                      <div>
+                        <Text strong style={{ fontSize: 13 }}>
+                          Pesan Makanan Lebih Awal?
+                        </Text>
+                        <div>
+                          <Text type="secondary" style={{ fontSize: 11 }}>
+                            Menu akan langsung dipersiapkan begitu Anda duduk.
+                          </Text>
+                        </div>
+                      </div>
+                      <Button
+                        type="primary"
+                        icon={<ShoppingOutlined />}
+                        onClick={() => setActiveTab("preorder")}
+                      >
+                        {customer.pre_orders?.items?.length
+                          ? "Edit Pre-Order"
+                          : "Pilih Menu"}
+                      </Button>
+                    </div>
 
-            <button
-              type="button"
-              onClick={handleSavePreOrder}
-              disabled={isSubmittingOrder}
-              className="w-full py-3 px-4 rounded-xl bg-primary hover:bg-blue-700 text-white font-bold text-xs transition disabled:opacity-50 shadow-lg"
-            >
-              {isSubmittingOrder ? "Menyimpan..." : "Simpan Pilihan Menu Pre-Order"}
-            </button>
-          </div>
-        </div>
-      )}
+                    {customer.pre_orders?.items && (
+                      <div style={{ marginTop: 12 }}>
+                        <Divider style={{ margin: "8px 0", fontSize: 11 }}>
+                          Daftar Pre-Order Tersimpan
+                        </Divider>
+                        {customer.pre_orders.items.map((it) => (
+                          <div
+                            key={it.id}
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              fontSize: 12,
+                              padding: "4px 0",
+                            }}
+                          >
+                            <Text>
+                              {it.qty}x {it.name}
+                            </Text>
+                            <Text strong>
+                              Rp {(it.price * it.qty).toLocaleString("id-ID")}
+                            </Text>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </Card>
+                </Space>
+              ),
+            },
+            {
+              key: "preorder",
+              label: "Menu & Pre-Order",
+              children: (
+                <Space
+                  orientation="vertical"
+                  size="middle"
+                  style={{ width: "100%", marginTop: 8 }}
+                >
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    Pilih menu makanan & minuman. Pesanan akan dikirim ke dapur
+                    secara otomatis saat meja Anda telah siap.
+                  </Text>
+
+                  {menuList.length === 0 ? (
+                    <Empty description="Katalog menu belum tersedia." />
+                  ) : (
+                    <div>
+                      {menuList.map((item, idx) => {
+                        const qty = cart[item.id] || 0;
+
+                        return (
+                          <div
+                            key={item.id}
+                            style={{
+                              padding: "12px 0",
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                              borderBottom: idx < menuList.length - 1 ? "1px solid #f0f0f0" : undefined,
+                            }}
+                          >
+                            <div style={{ maxWidth: 280 }}>
+                              <Text strong style={{ fontSize: 14 }}>
+                                {item.name}
+                              </Text>
+                              <div>
+                                <Text
+                                  type="secondary"
+                                  style={{ fontSize: 12 }}
+                                >
+                                  {item.description || item.category}
+                                </Text>
+                              </div>
+                              <Text strong style={{ color: "#1677ff" }}>
+                                Rp {item.price.toLocaleString("id-ID")}
+                              </Text>
+                            </div>
+
+                            <Space size="small">
+                              {qty > 0 ? (
+                                <>
+                                  <Button
+                                    size="small"
+                                    onClick={() => handleUpdateQty(item.id, -1)}
+                                  >
+                                    -
+                                  </Button>
+                                  <Text strong style={{ minWidth: 20, textAlign: "center" }}>
+                                    {qty}
+                                  </Text>
+                                  <Button
+                                    size="small"
+                                    onClick={() => handleUpdateQty(item.id, 1)}
+                                  >
+                                    +
+                                  </Button>
+                                </>
+                              ) : (
+                                <Button
+                                  type="primary"
+                                  ghost
+                                  size="small"
+                                  icon={<ShoppingOutlined />}
+                                  onClick={() => handleUpdateQty(item.id, 1)}
+                                >
+                                  Pesan
+                                </Button>
+                              )}
+                            </Space>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  <Divider style={{ margin: "12px 0" }} />
+
+                  <div>
+                    <Text strong style={{ fontSize: 12 }}>
+                      Catatan Khusus ke Dapur
+                    </Text>
+                    <Input.TextArea
+                      placeholder="Contoh: Kurang pedas, es dipisah (opsional)"
+                      value={orderNotes}
+                      onChange={(e) => setOrderNotes(e.target.value)}
+                      style={{ marginTop: 4 }}
+                      rows={2}
+                    />
+                  </div>
+
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      marginTop: 8,
+                    }}
+                  >
+                    <div>
+                      <Text type="secondary" style={{ fontSize: 11 }}>
+                        Total Pre-Order
+                      </Text>
+                      <div>
+                        <Text strong style={{ fontSize: 18, color: "#1677ff" }}>
+                          Rp {calculateTotal().toLocaleString("id-ID")}
+                        </Text>
+                      </div>
+                    </div>
+
+                    <Button
+                      type="primary"
+                      size="large"
+                      loading={isSubmittingOrder}
+                      disabled={calculateTotal() === 0}
+                      onClick={handleSavePreOrder}
+                    >
+                      Simpan Pre-Order
+                    </Button>
+                  </div>
+                </Space>
+              ),
+            },
+          ]}
+        />
+      </Card>
     </div>
   );
 }

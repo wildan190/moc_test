@@ -52,6 +52,7 @@ return new class extends Migration
             $table->id();
             $table->string('outlet_id')->index();
             $table->string('name');
+            $table->string('table_id')->nullable()->index();
             $table->unsignedInteger('capacity');
             $table->boolean('active')->default(true);
             $table->timestamps();

@@ -32,6 +32,7 @@ class ArriveAction
             'customer_name' => $data['customer_name'],
             'party_size' => $data['party_size'],
             'status' => 'waiting',
+            'source' => 'walk_in',
         ]);
 
         $this->restaurantService->processWaitingQueue();

@@ -1,7 +1,19 @@
-import { type PropsWithChildren } from "react";
+import React from "react";
 
-export default function WithoutLayout({ children }: PropsWithChildren) {
+export default function WithoutLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-dark">{children}</div>
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "#f0f2f5",
+        padding: "24px 16px",
+      }}
+    >
+      {children}
+    </div>
   );
 }

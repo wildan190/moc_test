@@ -139,8 +139,9 @@ class PosController extends Controller
         return response()->json(DB::table('pos_customers')->find($id), 201);
     }
 
-    public function reservations(Request $request): JsonResponse
+    public function reservations(Request $request, \App\Services\RestaurantService $restaurantService): JsonResponse
     {
+        $restaurantService->processDueReservations();
         $query = DB::table('pos_reservations')->join('pos_reservation_spaces', 'pos_reservations.space_id', '=', 'pos_reservation_spaces.id')->select('pos_reservations.*', 'pos_reservation_spaces.name as space_name', 'pos_reservation_spaces.capacity as space_capacity')->orderBy('reservation_date')->orderBy('start_time');
         if ($request->filled('date')) $query->whereDate('reservation_date', $request->query('date'));
         if ($request->filled('outlet_id')) $query->where('pos_reservations.outlet_id', $request->query('outlet_id'));
@@ -149,7 +150,7 @@ class PosController extends Controller
 
     public function spaces(Request $request): JsonResponse
     {
-        return response()->json(DB::table('pos_reservation_spaces')->where('outlet_id', $request->query('outlet_id', 'outlet-jakarta'))->where('active', true)->orderBy('capacity')->orderBy('name')->get());
+        return response()->json(DB::table('pos_reservation_spaces')->where('outlet_id', $request->query('outlet_id', 'outlet-jakarta'))->where('active', true)->whereNotNull('table_id')->orderBy('capacity')->orderBy('name')->get());
     }
 
     public function storeReservation(Request $request): JsonResponse
@@ -159,7 +160,15 @@ class PosController extends Controller
             DB::table('pos_outlets')->where('id', $data['outlet_id'])->lockForUpdate()->first();
             $space = DB::table('pos_reservation_spaces')->where('id', $data['space_id'])->where('outlet_id', $data['outlet_id'])->where('active', true)->lockForUpdate()->first();
             if (!$space || $space->capacity < $data['party_size']) throw ValidationException::withMessages(['space_id' => 'Ruang tidak sesuai kapasitas tamu atau outlet.']);
-            $overlap = DB::table('pos_reservations')->where('space_id', $data['space_id'])->whereDate('reservation_date', $data['reservation_date'])->where('status', 'confirmed')->where('start_time', '<', $data['end_time'])->where('end_time', '>', $data['start_time'])->exists();
+            if (!$space->table_id) throw ValidationException::withMessages(['space_id' => 'Meja ini belum terhubung ke denah restoran.']);
+            $overlap = DB::table('pos_reservations')
+                ->join('pos_reservation_spaces', 'pos_reservations.space_id', '=', 'pos_reservation_spaces.id')
+                ->where('pos_reservation_spaces.table_id', $space->table_id)
+                ->whereDate('pos_reservations.reservation_date', $data['reservation_date'])
+                ->whereIn('pos_reservations.status', ['confirmed', 'arrived', 'seated'])
+                ->where('pos_reservations.start_time', '<', $data['end_time'])
+                ->where('pos_reservations.end_time', '>', $data['start_time'])
+                ->exists();
             if ($overlap) throw ValidationException::withMessages(['start_time' => 'Meja ini sudah dipesan pada waktu tersebut. Pilih meja atau waktu lain.']);
             return DB::table('pos_reservations')->insertGetId($data + ['status' => 'confirmed', 'created_at' => now(), 'updated_at' => now()]);
         });
