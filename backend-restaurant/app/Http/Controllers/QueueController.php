@@ -326,6 +326,19 @@ class QueueController extends Controller
             'eating_time_minutes' => null,
         ]);
 
+        foreach (['outlet-jakarta', 'outlet-bandung'] as $outletId) {
+            \Illuminate\Support\Facades\DB::table('pos_reservation_spaces')->updateOrInsert(
+                ['outlet_id' => $outletId, 'table_id' => $table->id],
+                [
+                    'name' => "Meja {$table->id}",
+                    'capacity' => $table->capacity,
+                    'active' => true,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]
+            );
+        }
+
         // Cek apakah ada antrean yang cocok dengan meja baru ini
         $restaurantService->processWaitingQueue();
 
@@ -355,6 +368,10 @@ class QueueController extends Controller
         }
 
         $table->delete();
+
+        \Illuminate\Support\Facades\DB::table('pos_reservation_spaces')
+            ->where('table_id', $id)
+            ->update(['active' => false, 'updated_at' => now()]);
 
         $pieSocket->broadcast('table_deleted', [
             'table_id' => $id,

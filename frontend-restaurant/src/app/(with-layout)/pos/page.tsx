@@ -49,7 +49,17 @@ import {
   EditOutlined,
   ShopOutlined,
   CreditCardOutlined,
+  PrinterOutlined,
+  CheckCircleOutlined,
+  DollarOutlined,
+  UsbOutlined,
+  WifiOutlined,
 } from "@ant-design/icons";
+import {
+  buildThermalReceipt,
+  printViaUSB,
+  printViaBluetooth,
+} from "@/lib/thermalPrinter";
 
 const { Title, Text } = Typography;
 
@@ -169,11 +179,29 @@ export default function PosPage() {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("Semua");
   const [payment, setPayment] = useState("tunai");
+  const [cashReceived, setCashReceived] = useState<number | null>(null);
   const [customerId, setCustomerId] = useState("");
   const [discount, setDiscount] = useState<number>(0);
   const [busy, setBusy] = useState(false);
   const [date, setDate] = useState(localDate());
   const [notice, setNotice] = useState("");
+
+  // Receipt & change modal
+  const [receiptModalOpen, setReceiptModalOpen] = useState(false);
+  const [paperWidth, setPaperWidth] = useState<"58mm" | "80mm">("58mm");
+  const [printing, setPrinting] = useState(false);
+  const [receiptData, setReceiptData] = useState<{
+    receiptNumber: string;
+    items: { name: string; quantity: number; price: number; lineTotal: number }[];
+    subtotal: number;
+    discount: number;
+    total: number;
+    paymentMethod: string;
+    cashReceived: number;
+    change: number;
+    customerName?: string;
+    date: string;
+  } | null>(null);
 
   // Product modal
   const [menuEditorOpen, setMenuEditorOpen] = useState(false);
@@ -294,6 +322,34 @@ export default function PosPage() {
   const total = Math.max(0, subtotal - Math.min(discount || 0, subtotal));
   const revenue = sales.reduce((sum, sale) => sum + Number(sale.total), 0);
 
+  // Cash payment & change calculations
+  const effectiveCash = cashReceived !== null ? cashReceived : total;
+  const change =
+    payment === "tunai" ? Math.max(0, effectiveCash - total) : 0;
+  const isUnderpaid =
+    payment === "tunai" && cashReceived !== null && cashReceived < total;
+
+  // Smart quick-cash suggestions based on total
+  const quickCashOptions = useMemo(() => {
+    if (total <= 0) return [];
+    const options = new Set<number>();
+
+    const next10k = Math.ceil(total / 10000) * 10000;
+    const next50k = Math.ceil(total / 50000) * 50000;
+    const next100k = Math.ceil(total / 100000) * 100000;
+    if (next10k > total) options.add(next10k);
+    if (next50k > total) options.add(next50k);
+    if (next100k > total) options.add(next100k);
+
+    [10000, 20000, 50000, 100000, 200000, 500000].forEach((denom) => {
+      if (denom > total) options.add(denom);
+    });
+
+    return Array.from(options)
+      .sort((a, b) => a - b)
+      .slice(0, 3);
+  }, [total]);
+
   const addToCart = (product: Product) => {
     if (
       !product.is_bundle &&
@@ -343,10 +399,35 @@ export default function PosPage() {
           })),
         }),
       });
+      const finalCash =
+        payment === "tunai" ? (cashReceived !== null ? cashReceived : total) : total;
+      const finalChange =
+        payment === "tunai" ? Math.max(0, finalCash - total) : 0;
+
+      setReceiptData({
+        receiptNumber: result.sale.receipt_number,
+        items: cart.map((item) => ({
+          name: item.product.name,
+          quantity: item.quantity,
+          price: item.product.price,
+          lineTotal: item.product.price * item.quantity,
+        })),
+        subtotal,
+        discount,
+        total,
+        paymentMethod: payment,
+        cashReceived: finalCash,
+        change: finalChange,
+        customerName: customers.find((c) => String(c.id) === customerId)?.name,
+        date: new Date().toLocaleString("id-ID"),
+      });
+
+      setReceiptModalOpen(true);
       toast.success(`Transaksi ${result.sale.receipt_number} berhasil disimpan.`);
       setCart([]);
       setDiscount(0);
       setCustomerId("");
+      setCashReceived(null);
       await Promise.all([loadBase(), loadSales()]);
     } catch (error) {
       toast.error(
@@ -356,6 +437,38 @@ export default function PosPage() {
     } finally {
       setBusy(false);
     }
+  };
+
+  const handlePrintUSB = async () => {
+    if (!receiptData) return;
+    setPrinting(true);
+    try {
+      const bytes = buildThermalReceipt({ ...receiptData, paperWidth });
+      await printViaUSB(bytes);
+      toast.success("Struk berhasil dikirim ke printer USB!");
+    } catch (err: any) {
+      toast.error(err.message || "Gagal mencetak via USB.");
+    } finally {
+      setPrinting(false);
+    }
+  };
+
+  const handlePrintBluetooth = async () => {
+    if (!receiptData) return;
+    setPrinting(true);
+    try {
+      const bytes = buildThermalReceipt({ ...receiptData, paperWidth });
+      await printViaBluetooth(bytes);
+      toast.success("Struk berhasil dikirim ke printer Bluetooth!");
+    } catch (err: any) {
+      toast.error(err.message || "Gagal mencetak via Bluetooth.");
+    } finally {
+      setPrinting(false);
+    }
+  };
+
+  const handlePrintBrowser = () => {
+    window.print();
   };
 
   const openNewProduct = () => {
@@ -479,6 +592,14 @@ export default function PosPage() {
 
   const createReservation = async (e?: FormEvent) => {
     if (e) e.preventDefault();
+    if (!reservationForm.customer_name.trim()) {
+      toast.error("Nama pemesan wajib diisi.");
+      return;
+    }
+    if (!reservationForm.space_id) {
+      toast.error("Silakan pilih meja yang tersedia.");
+      return;
+    }
     const start = reservationForm.start_time;
     const end = endSlot(start);
     try {
@@ -493,12 +614,13 @@ export default function PosPage() {
         }),
       });
       await loadReservations();
-      toast.success("Reservasi berhasil dikonfirmasi.");
+      toast.success("Reservasi berhasil dikonfirmasi dan tersimpan di database.");
       setReservationForm((form) => ({
         ...form,
         customer_name: "",
         phone: "",
         notes: "",
+        space_id: "",
       }));
     } catch (error) {
       toast.error(
@@ -904,7 +1026,10 @@ export default function PosPage() {
                         </Text>
                         <Radio.Group
                           value={payment}
-                          onChange={(e) => setPayment(e.target.value)}
+                          onChange={(e) => {
+                            setPayment(e.target.value);
+                            if (e.target.value !== "tunai") setCashReceived(null);
+                          }}
                           style={{ width: "100%", marginTop: 4 }}
                         >
                           <Radio.Button value="tunai">Tunai</Radio.Button>
@@ -913,6 +1038,137 @@ export default function PosPage() {
                           <Radio.Button value="transfer">Transfer</Radio.Button>
                         </Radio.Group>
                       </div>
+
+                      {/* Cash Input & Change Calculation */}
+                      {payment === "tunai" && total > 0 && (
+                        <div
+                          style={{
+                            background: "#fafafa",
+                            border: "1px solid #f0f0f0",
+                            borderRadius: 8,
+                            padding: "10px 12px",
+                            marginTop: 4,
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                            }}
+                          >
+                            <Text strong style={{ fontSize: 12 }}>
+                              Uang Tunai Diterima (Rp)
+                            </Text>
+                            <Button
+                              type={cashReceived === total ? "primary" : "dashed"}
+                              size="small"
+                              onClick={() => setCashReceived(total)}
+                              style={{ fontSize: 11 }}
+                            >
+                              Uang Pas
+                            </Button>
+                          </div>
+
+                          <InputNumber
+                            min={0}
+                            value={cashReceived ?? undefined}
+                            placeholder={`Ketik nominal uang (cth: ${money(total)})`}
+                            onChange={(val) => setCashReceived(val ?? null)}
+                            style={{ width: "100%", marginTop: 6 }}
+                            prefix="Rp"
+                            formatter={(value) =>
+                              `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+                            }
+                            parser={(value) =>
+                              Number(value?.replace(/\$\s?|(,*)/g, "") || 0)
+                            }
+                          />
+
+                          {/* Quick cash denomination buttons */}
+                          {quickCashOptions.length > 0 && (
+                            <div
+                              style={{
+                                display: "flex",
+                                gap: 6,
+                                marginTop: 8,
+                                flexWrap: "wrap",
+                              }}
+                            >
+                              {quickCashOptions.map((opt) => (
+                                <Button
+                                  key={opt}
+                                  size="small"
+                                  type={cashReceived === opt ? "primary" : "default"}
+                                  onClick={() => setCashReceived(opt)}
+                                  style={{ fontSize: 11 }}
+                                >
+                                  {money(opt)}
+                                </Button>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Live Change / Underpaid Status */}
+                          {cashReceived !== null && (
+                            <div style={{ marginTop: 8 }}>
+                              {isUnderpaid ? (
+                                <div
+                                  style={{
+                                    background: "#fff2e8",
+                                    border: "1px solid #ffbb96",
+                                    borderRadius: 6,
+                                    padding: "6px 10px",
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "center",
+                                  }}
+                                >
+                                  <Text style={{ color: "#d4380d", fontSize: 12 }}>
+                                    Uang Kurang
+                                  </Text>
+                                  <Text strong style={{ color: "#ff4d4f", fontSize: 13 }}>
+                                    - {money(total - cashReceived)}
+                                  </Text>
+                                </div>
+                              ) : (
+                                <div
+                                  style={{
+                                    background: change > 0 ? "#f6ffed" : "#f0f5ff",
+                                    border: `1px solid ${
+                                      change > 0 ? "#b7eb8f" : "#91caff"
+                                    }`,
+                                    borderRadius: 6,
+                                    padding: "6px 10px",
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "center",
+                                  }}
+                                >
+                                  <Text
+                                    strong
+                                    style={{
+                                      color: change > 0 ? "#389e0d" : "#0958d9",
+                                      fontSize: 12,
+                                    }}
+                                  >
+                                    {change > 0 ? "Kembalian" : "Status"}
+                                  </Text>
+                                  <Text
+                                    strong
+                                    style={{
+                                      color: change > 0 ? "#52c41a" : "#1677ff",
+                                      fontSize: 16,
+                                    }}
+                                  >
+                                    {change > 0 ? money(change) : "Uang Pas"}
+                                  </Text>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
 
                       <Divider style={{ margin: "12px 0" }} />
 
@@ -957,16 +1213,45 @@ export default function PosPage() {
                         </Text>
                       </div>
 
+                      {/* Display Change in Summary if Cash > Total */}
+                      {payment === "tunai" &&
+                        cashReceived !== null &&
+                        cashReceived > total && (
+                          <div
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              fontSize: 14,
+                              marginTop: 4,
+                              background: "#f6ffed",
+                              padding: "6px 10px",
+                              borderRadius: 6,
+                              border: "1px solid #b7eb8f",
+                            }}
+                          >
+                            <Text strong style={{ color: "#389e0d" }}>
+                              Kembalian
+                            </Text>
+                            <Text strong style={{ color: "#52c41a", fontSize: 16 }}>
+                              {money(change)}
+                            </Text>
+                          </div>
+                        )}
+
                       <Button
                         type="primary"
                         size="large"
                         block
-                        disabled={cart.length === 0 || busy}
+                        disabled={cart.length === 0 || busy || isUnderpaid}
                         loading={busy}
                         onClick={() => void checkout()}
                         style={{ marginTop: 12 }}
                       >
-                        {busy ? "Memproses..." : `Bayar ${money(total)}`}
+                        {busy
+                          ? "Memproses..."
+                          : isUnderpaid
+                          ? `Uang Kurang (${money(total - (cashReceived || 0))})`
+                          : `Bayar ${money(total)}`}
                       </Button>
                     </Space>
                   </Card>
@@ -1427,6 +1712,24 @@ export default function PosPage() {
                             style={{ marginTop: 4 }}
                           />
                         </div>
+
+                        <div>
+                          <Text strong>Tanggal Reservasi</Text>
+                          <Input
+                            type="date"
+                            min={localDate()}
+                            required
+                            value={reservationForm.reservation_date}
+                            onChange={(e) =>
+                              setReservationForm({
+                                ...reservationForm,
+                                reservation_date: e.target.value,
+                              })
+                            }
+                            style={{ marginTop: 4 }}
+                          />
+                        </div>
+
                         <Row gutter={8}>
                           <Col span={12}>
                             <Text strong>Telepon</Text>
@@ -1448,12 +1751,20 @@ export default function PosPage() {
                               min={1}
                               max={40}
                               value={Number(reservationForm.party_size)}
-                              onChange={(val) =>
+                              onChange={(val) => {
+                                const newParty = String(val || 2);
+                                const selectedSpace = spaces.find(
+                                  (s) => String(s.id) === reservationForm.space_id
+                                );
+                                const needsReset =
+                                  selectedSpace &&
+                                  selectedSpace.capacity < Number(newParty);
                                 setReservationForm({
                                   ...reservationForm,
-                                  party_size: String(val || 2),
-                                })
-                              }
+                                  party_size: newParty,
+                                  space_id: needsReset ? "" : reservationForm.space_id,
+                                });
+                              }}
                               style={{ width: "100%", marginTop: 4 }}
                             />
                           </Col>
@@ -1689,6 +2000,291 @@ export default function PosPage() {
             </div>
           </Space>
         </form>
+      </Modal>
+
+      {/* Modal: Struk & Kembalian Kasir (Termal USB / Bluetooth / Browser) */}
+      <Modal
+        open={receiptModalOpen}
+        onCancel={() => setReceiptModalOpen(false)}
+        footer={[
+          <Button
+            key="usb"
+            icon={<UsbOutlined />}
+            loading={printing}
+            onClick={handlePrintUSB}
+            type="primary"
+            style={{ background: "#1677ff" }}
+          >
+            Cetak USB
+          </Button>,
+          <Button
+            key="bt"
+            icon={<WifiOutlined />}
+            loading={printing}
+            onClick={handlePrintBluetooth}
+            type="primary"
+            style={{ background: "#722ed1", borderColor: "#722ed1" }}
+          >
+            Cetak Bluetooth
+          </Button>,
+          <Button
+            key="browser"
+            icon={<PrinterOutlined />}
+            onClick={handlePrintBrowser}
+          >
+            Browser / PDF
+          </Button>,
+          <Button
+            key="close"
+            onClick={() => setReceiptModalOpen(false)}
+          >
+            Selesai
+          </Button>,
+        ]}
+        width={460}
+        centered
+        title={
+          <Space>
+            <CheckCircleOutlined style={{ color: "#52c41a", fontSize: 18 }} />
+            <span>Pembayaran Berhasil</span>
+          </Space>
+        }
+      >
+        {receiptData && (
+          <div style={{ marginTop: 8 }}>
+            {/* Paper Width Selector & Device Info */}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                background: "#f5f5f5",
+                padding: "8px 12px",
+                borderRadius: 8,
+                marginBottom: 12,
+              }}
+            >
+              <Text style={{ fontSize: 12 }}>Kertas Thermal:</Text>
+              <Radio.Group
+                size="small"
+                value={paperWidth}
+                onChange={(e) => setPaperWidth(e.target.value)}
+              >
+                <Radio.Button value="58mm">58mm (Standar)</Radio.Button>
+                <Radio.Button value="80mm">80mm</Radio.Button>
+              </Radio.Group>
+            </div>
+
+            {/* Kembalian Highlight Banner */}
+            {receiptData.paymentMethod === "tunai" && receiptData.change > 0 && (
+              <div
+                style={{
+                  background: "#f6ffed",
+                  border: "2px dashed #52c41a",
+                  borderRadius: 10,
+                  padding: "16px",
+                  textAlign: "center",
+                  marginBottom: 16,
+                }}
+              >
+                <Text
+                  type="secondary"
+                  style={{
+                    fontSize: 12,
+                    textTransform: "uppercase",
+                    letterSpacing: 1,
+                    fontWeight: 700,
+                    color: "#52c41a",
+                  }}
+                >
+                  Uang Kembalian Pelanggan
+                </Text>
+                <div
+                  style={{
+                    fontSize: 32,
+                    fontWeight: 800,
+                    color: "#389e0d",
+                    lineHeight: 1.2,
+                    marginTop: 4,
+                  }}
+                >
+                  {money(receiptData.change)}
+                </div>
+                <div style={{ fontSize: 12, color: "#8c8c8c", marginTop: 6 }}>
+                  Total: {money(receiptData.total)} • Tunai Diterima:{" "}
+                  {money(receiptData.cashReceived)}
+                </div>
+              </div>
+            )}
+
+            {/* Receipt Body */}
+            <div
+              id="printable-pos-receipt"
+              style={{
+                background: "#fafafa",
+                border: "1px solid #e8e8e8",
+                borderRadius: 8,
+                padding: "16px",
+                fontSize: 12,
+                maxWidth: paperWidth === "58mm" ? 280 : 360,
+                margin: "0 auto",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+              }}
+            >
+              <div
+                style={{
+                  textAlign: "center",
+                  borderBottom: "1px dashed #d9d9d9",
+                  paddingBottom: 10,
+                  marginBottom: 10,
+                }}
+              >
+                <div style={{ fontWeight: "bold", fontSize: 15 }}>
+                  PADA RESTO
+                </div>
+                <div style={{ color: "#8c8c8c", fontSize: 11 }}>
+                  Outlet Jakarta
+                </div>
+                <div style={{ color: "#595959", marginTop: 4, fontWeight: 600 }}>
+                  {receiptData.receiptNumber}
+                </div>
+                <div style={{ color: "#8c8c8c", fontSize: 11 }}>
+                  {receiptData.date}
+                </div>
+                {receiptData.customerName && (
+                  <div style={{ color: "#1677ff", marginTop: 2 }}>
+                    Pelanggan: {receiptData.customerName}
+                  </div>
+                )}
+              </div>
+
+              {/* Items */}
+              <div
+                style={{
+                  borderBottom: "1px dashed #d9d9d9",
+                  paddingBottom: 10,
+                  marginBottom: 10,
+                }}
+              >
+                {receiptData.items.map((item, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      marginBottom: 6,
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontWeight: 600 }}>{item.name}</div>
+                      <div style={{ color: "#8c8c8c", fontSize: 11 }}>
+                        {item.quantity} x {money(item.price)}
+                      </div>
+                    </div>
+                    <div style={{ fontWeight: 600 }}>{money(item.lineTotal)}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Totals Breakdown */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <Text type="secondary">Subtotal</Text>
+                  <span>{money(receiptData.subtotal)}</span>
+                </div>
+                {receiptData.discount > 0 && (
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      color: "#52c41a",
+                    }}
+                  >
+                    <span>Diskon</span>
+                    <span>- {money(receiptData.discount)}</span>
+                  </div>
+                )}
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    fontWeight: "bold",
+                    fontSize: 14,
+                    marginTop: 4,
+                  }}
+                >
+                  <span>Total Belanja</span>
+                  <span style={{ color: "#1677ff" }}>
+                    {money(receiptData.total)}
+                  </span>
+                </div>
+
+                <div
+                  style={{
+                    borderTop: "1px dashed #d9d9d9",
+                    paddingTop: 8,
+                    marginTop: 6,
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                    }}
+                  >
+                    <Text type="secondary">Metode Bayar</Text>
+                    <Tag color="blue" style={{ textTransform: "uppercase", margin: 0 }}>
+                      {receiptData.paymentMethod}
+                    </Tag>
+                  </div>
+                  {receiptData.paymentMethod === "tunai" && (
+                    <>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          marginTop: 4,
+                        }}
+                      >
+                        <Text type="secondary">Tunai Diterima</Text>
+                        <span style={{ fontWeight: 600 }}>
+                          {money(receiptData.cashReceived)}
+                        </span>
+                      </div>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          fontWeight: "bold",
+                          color: receiptData.change > 0 ? "#52c41a" : undefined,
+                          marginTop: 4,
+                        }}
+                      >
+                        <span>Kembalian</span>
+                        <span style={{ fontSize: 14 }}>
+                          {money(receiptData.change)}
+                        </span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  textAlign: "center",
+                  marginTop: 14,
+                  color: "#8c8c8c",
+                  fontSize: 11,
+                  borderTop: "1px dashed #d9d9d9",
+                  paddingTop: 8,
+                }}
+              >
+                Terima kasih atas kunjungan Anda!
+              </div>
+            </div>
+          </div>
+        )}
       </Modal>
     </Space>
   );

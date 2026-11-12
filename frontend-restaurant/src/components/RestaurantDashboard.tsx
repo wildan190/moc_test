@@ -42,6 +42,8 @@ import {
   ShoppingOutlined,
   ClockCircleOutlined,
   TableOutlined,
+  CalendarOutlined,
+  UserOutlined,
 } from "@ant-design/icons";
 
 const { Title, Text } = Typography;
@@ -164,6 +166,20 @@ export default function RestaurantDashboard() {
   // Manual Seat Modal
   const [manualSeatMember, setManualSeatMember] = useState<QueueMember | null>(null);
   const [manualSeatTableId, setManualSeatTableId] = useState<string>("");
+
+  // Reservation Modal (Dashboard direct booking)
+  const [isReservationModalOpen, setIsReservationModalOpen] = useState(false);
+  const [resForm, setResForm] = useState({
+    customer_name: "",
+    phone: "",
+    party_size: 2,
+    reservation_date: new Date().toISOString().slice(0, 10),
+    start_time: "18:00",
+    end_time: "",
+    table_id: "",
+    notes: "",
+  });
+  const [isSubmittingReservation, setIsSubmittingReservation] = useState(false);
 
   // Filter States
   const [tableSearchTerm, setTableSearchTerm] = useState("");
@@ -407,6 +423,108 @@ export default function RestaurantDashboard() {
     }
   };
 
+  // ── Dashboard Reservation handlers ───────────────────────────────────────────
+  const handleCreateDashboardReservation = async () => {
+    if (!resForm.customer_name.trim()) {
+      toast.error("Nama tamu wajib diisi");
+      return;
+    }
+    if (!resForm.table_id) {
+      toast.error("Pilih meja terlebih dahulu");
+      return;
+    }
+
+    // Resolve space_id from selected table_id
+    let spaceId: number | null = null;
+    try {
+      const spaceRes = await fetch(`${API}/pos/spaces?outlet_id=outlet-jakarta`);
+      if (spaceRes.ok) {
+        const spaces: Array<{ id: number; table_id: string }> = await spaceRes.json();
+        const matched = spaces.find((s) => s.table_id === resForm.table_id);
+        if (!matched) {
+          toast.error(`Meja ${resForm.table_id} belum terdaftar sebagai space reservasi. Hubungi admin.`);
+          return;
+        }
+        spaceId = matched.id;
+      }
+    } catch {
+      toast.error("Gagal mengambil data space reservasi");
+      return;
+    }
+
+    setIsSubmittingReservation(true);
+    try {
+      const res = await fetch(`${API}/pos/reservations`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          outlet_id: "outlet-jakarta",
+          space_id: spaceId,
+          customer_name: resForm.customer_name,
+          phone: resForm.phone,
+          party_size: resForm.party_size,
+          reservation_date: resForm.reservation_date,
+          start_time: resForm.start_time,
+          end_time: resForm.end_time || (() => {
+            const [h, m] = resForm.start_time.split(":").map(Number);
+            const endH = String(h + 2).padStart(2, "0");
+            return `${endH}:${m.toString().padStart(2, "0")}`;
+          })(),
+          notes: resForm.notes,
+        }),
+      });
+      const d = await res.json();
+      if (res.ok) {
+        toast.success(`Reservasi untuk ${resForm.customer_name} berhasil dibuat!`);
+        setResForm({
+          customer_name: "",
+          phone: "",
+          party_size: 2,
+          reservation_date: new Date().toISOString().slice(0, 10),
+          start_time: "18:00",
+          end_time: "",
+          table_id: "",
+          notes: "",
+        });
+        setIsReservationModalOpen(false);
+        fetchAll();
+      } else {
+        toast.error(d.message ?? "Gagal membuat reservasi");
+      }
+    } catch {
+      toast.error("Kesalahan jaringan saat membuat reservasi");
+    } finally {
+      setIsSubmittingReservation(false);
+    }
+  };
+
+  const handleCheckInReservation = async (table: TableData) => {
+    if (!table.reservation) return;
+    try {
+      const res = await fetch(`${API}/arrive`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customer_name: table.reservation.customer_name,
+          party_size: table.reservation.party_size,
+        }),
+      });
+      const d = await res.json();
+      if (res.ok) {
+        toast.success(
+          d.customer?.status === "seated"
+            ? `${table.reservation.customer_name} duduk di Meja ${d.customer?.table?.id}`
+            : `${table.reservation.customer_name} masuk antrean`
+        );
+        fetchAll();
+      } else {
+        toast.error(d.message ?? "Gagal check-in");
+      }
+    } catch {
+      toast.error("Kesalahan jaringan saat check-in");
+    }
+  };
+
   const callCustomer = (member: QueueMember) => {
     playChime();
     const recTable = getSmartRecommendation(member.party_size);
@@ -529,6 +647,13 @@ export default function RestaurantDashboard() {
                 >
                   Gabung Meja
                 </Button>
+                <Button
+                  icon={<CalendarOutlined />}
+                  onClick={() => setIsReservationModalOpen(true)}
+                  style={{ borderColor: "#722ed1", color: "#722ed1" }}
+                >
+                  Reservasi Meja
+                </Button>
                 <Button icon={<ReloadOutlined />} onClick={fetchAll} />
               </Space>
             }
@@ -604,6 +729,18 @@ export default function RestaurantDashboard() {
                           chairSeat: "#d3adf7",
                           chairBack: "#722ed1",
                           badgeBg: "#f9f0ff",
+                          badgeText: "#531dab",
+                          statusColor: "purple",
+                        }
+                      : !table.queue_member && table.reservation
+                      ? {
+                          cardBorder: "#b5a3e0",
+                          topBg: "#f5f0ff",
+                          tableBg: "#ffffff",
+                          tableStroke: "#9254de",
+                          chairSeat: "#d3adf7",
+                          chairBack: "#9254de",
+                          badgeBg: "#f5f0ff",
                           badgeText: "#531dab",
                           statusColor: "purple",
                         }
@@ -925,6 +1062,41 @@ export default function RestaurantDashboard() {
                               </Button>
                             )}
                           </div>
+                        ) : !table.queue_member && table.reservation ? (
+                          <div
+                            style={{
+                              background: "#f9f0ff",
+                              borderRadius: 6,
+                              padding: "6px 8px",
+                              marginTop: 2,
+                              border: "1px solid #d3adf7",
+                            }}
+                          >
+                            <div
+                              style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                              }}
+                            >
+                              <Space size={4}>
+                                <CalendarOutlined style={{ color: "#722ed1", fontSize: 11 }} />
+                                <span style={{ fontWeight: 600, fontSize: 12, color: "#531dab" }}>
+                                  {table.reservation.customer_name}
+                                </span>
+                              </Space>
+                              <Tag color="purple" style={{ fontSize: 10, margin: 0 }}>
+                                {table.reservation.party_size} org
+                              </Tag>
+                            </div>
+                            <div style={{ marginTop: 3, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                              <Text type="secondary" style={{ fontSize: 10 }}>
+                                <ClockCircleOutlined style={{ marginRight: 2 }} />
+                                {table.reservation.start_time?.slice(0, 5)} – {table.reservation.end_time?.slice(0, 5)}
+                              </Text>
+                              <Tag color="purple" style={{ fontSize: 9, margin: 0 }}>Reservasi</Tag>
+                            </div>
+                          </div>
                         ) : (
                           <div
                             style={{
@@ -948,6 +1120,21 @@ export default function RestaurantDashboard() {
                             gap: 4,
                           }}
                         >
+                          {!table.queue_member && table.reservation && table.status === "vacant" && (
+                            <Button
+                              size="small"
+                              type="primary"
+                              icon={<UserOutlined />}
+                              style={{
+                                fontSize: 10,
+                                background: "#722ed1",
+                                borderColor: "#722ed1",
+                              }}
+                              onClick={() => handleCheckInReservation(table)}
+                            >
+                              Check-In Tamu
+                            </Button>
+                          )}
                           {table.status === "dining" && (
                             <Button
                               size="small"
@@ -1436,6 +1623,118 @@ export default function RestaurantDashboard() {
             />
           </Space>
         )}
+      </Modal>
+
+      {/* Modal: Buat Reservasi Meja (Dashboard) */}
+      <Modal
+        title={
+          <Space>
+            <CalendarOutlined style={{ color: "#722ed1" }} />
+            <span>Buat Reservasi Meja</span>
+          </Space>
+        }
+        open={isReservationModalOpen}
+        onCancel={() => setIsReservationModalOpen(false)}
+        onOk={handleCreateDashboardReservation}
+        okText="Simpan Reservasi"
+        cancelText="Batal"
+        confirmLoading={isSubmittingReservation}
+        width={520}
+      >
+        <Space orientation="vertical" size="middle" style={{ width: "100%", marginTop: 16 }}>
+          <div>
+            <Text strong>Nama Tamu <span style={{ color: "#ff4d4f" }}>*</span></Text>
+            <Input
+              placeholder="Masukkan nama tamu"
+              value={resForm.customer_name}
+              onChange={(e) => setResForm((f) => ({ ...f, customer_name: e.target.value }))}
+              style={{ marginTop: 4 }}
+            />
+          </div>
+          <div>
+            <Text strong>Nomor HP</Text>
+            <Input
+              placeholder="Contoh: 08123456789"
+              value={resForm.phone}
+              onChange={(e) => setResForm((f) => ({ ...f, phone: e.target.value }))}
+              style={{ marginTop: 4 }}
+            />
+          </div>
+          <div>
+            <Text strong>Jumlah Tamu <span style={{ color: "#ff4d4f" }}>*</span></Text>
+            <InputNumber
+              min={1}
+              max={20}
+              value={resForm.party_size}
+              onChange={(val) => setResForm((f) => ({ ...f, party_size: val || 1, table_id: "" }))}
+              style={{ width: "100%", marginTop: 4 }}
+            />
+          </div>
+          <div>
+            <Text strong>Pilih Meja <span style={{ color: "#ff4d4f" }}>*</span></Text>
+            <Select
+              placeholder="Pilih meja yang akan dipesan"
+              value={resForm.table_id || undefined}
+              onChange={(val) => setResForm((f) => ({ ...f, table_id: val }))}
+              style={{ width: "100%", marginTop: 4 }}
+              options={tables
+                .filter((t) => t.status === "vacant" && t.capacity >= resForm.party_size && !t.reservation)
+                .map((t) => ({
+                  label: `Meja ${t.id} — kapasitas ${t.capacity} orang`,
+                  value: t.id,
+                }))}
+            />
+            {resForm.table_id && (
+              <Text type="secondary" style={{ fontSize: 11 }}>
+                Kapasitas meja: {tables.find((t) => t.id === resForm.table_id)?.capacity ?? "—"} orang
+              </Text>
+            )}
+          </div>
+          <Row gutter={8}>
+            <Col span={12}>
+              <Text strong>Tanggal Reservasi <span style={{ color: "#ff4d4f" }}>*</span></Text>
+              <Input
+                type="date"
+                min={new Date().toISOString().slice(0, 10)}
+                value={resForm.reservation_date}
+                onChange={(e) => setResForm((f) => ({ ...f, reservation_date: e.target.value }))}
+                style={{ marginTop: 4 }}
+              />
+            </Col>
+            <Col span={12}>
+              <Text strong>Jam Mulai <span style={{ color: "#ff4d4f" }}>*</span></Text>
+              <Input
+                type="time"
+                value={resForm.start_time}
+                onChange={(e) => setResForm((f) => ({ ...f, start_time: e.target.value }))}
+                style={{ marginTop: 4 }}
+              />
+            </Col>
+          </Row>
+          <div>
+            <Text strong>Catatan (opsional)</Text>
+            <Input.TextArea
+              placeholder="Contoh: Ulang tahun, alergi makanan, dll."
+              value={resForm.notes}
+              onChange={(e) => setResForm((f) => ({ ...f, notes: e.target.value }))}
+              rows={2}
+              style={{ marginTop: 4 }}
+            />
+          </div>
+          <div
+            style={{
+              background: "#f9f0ff",
+              borderRadius: 6,
+              padding: "8px 12px",
+              border: "1px solid #d3adf7",
+              fontSize: 12,
+              color: "#531dab",
+            }}
+          >
+            <CalendarOutlined style={{ marginRight: 6 }} />
+            Reservasi akan otomatis muncul di denah meja pada hari dan jam yang ditentukan.
+          </div>
+        </Space>
       </Modal>
     </Space>
   );
