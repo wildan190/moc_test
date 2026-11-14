@@ -200,14 +200,39 @@ jobs:
           COOLIFY_WEBHOOK: ${{ secrets.COOLIFY_WEBHOOK_URL }}
         run: |
           echo "Triggering deployment in Coolify..."
-          response=$(curl -s -w "\n%{http_code}" -X GET "$COOLIFY_WEBHOOK")
-          http_code=$(echo "$response" | tail -n1)
-          body=$(echo "$response" | head -n-1)
-          echo "Coolify response: $body"
+          
+          # Trim whitespace from webhook URL
+          CLEAN_WEBHOOK=$(echo "$COOLIFY_WEBHOOK" | xargs)
+          
+          # Extract host for diagnostic check
+          TARGET_HOST=$(echo "$CLEAN_WEBHOOK" | awk -F[/:] '{print $4}')
+          echo "Connecting to host: $TARGET_HOST"
+
+          if [ "$TARGET_HOST" = "localhost" ] || [ "$TARGET_HOST" = "127.0.0.1" ]; then
+            echo "::error ::COOLIFY_WEBHOOK_URL menggunakan '$TARGET_HOST'. GitHub Actions berjalan di internet publik dan tidak dapat mengakses localhost server Anda. Gunakan domain publik atau IP publik server Coolify Anda."
+            exit 1
+          fi
+
+          # Execute curl with detailed error capture
+          http_response=$(curl -sS -w "\n%{http_code}" -X GET "$CLEAN_WEBHOOK" 2>&1) || curl_exit=$?
+          
+          if [ "${curl_exit:-0}" -ne 0 ]; then
+            echo "::error ::Gagal menghubungi Coolify (curl exit code: $curl_exit). Pesan error: $http_response"
+            echo "Troubleshooting:"
+            echo "1. Pastikan domain/IP '$TARGET_HOST' bisa diakses dari internet publik."
+            echo "2. Periksa apakah ada salah ketik di GitHub Secret COOLIFY_WEBHOOK_URL."
+            exit $curl_exit
+          fi
+
+          http_code=$(echo "$http_response" | tail -n1)
+          body=$(echo "$http_response" | head -n-1)
+          echo "Coolify response HTTP: $http_code"
+          echo "Response body: $body"
+
           if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
-            echo "Coolify deployment triggered successfully (HTTP $http_code)!"
+            echo "✅ Coolify deployment triggered successfully (HTTP $http_code)!"
           else
-            echo "Warning: Coolify returned HTTP $http_code. Check Coolify webhook URL."
+            echo "::warning ::Coolify returned HTTP $http_code. Periksa token atau UUID webhook Coolify."
           fi
 
       # Option B: Fallback Deploy via SSH (if SERVER_HOST is configured and no Coolify webhook)
