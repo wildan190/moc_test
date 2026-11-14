@@ -215,46 +215,66 @@ export default function AnalyticsSection({
   return (
     <Space orientation="vertical" size="large" style={{ width: "100%" }}>
       {/* Metric Cards */}
-      <Row gutter={[16, 16]}>
+      <Row gutter={[12, 12]}>
         <Col xs={12} sm={12} lg={6}>
-          <Card variant="borderless" style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+          <Card
+            variant="borderless"
+            styles={{ body: { padding: "14px 16px" } }}
+            style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}
+          >
             <Statistic
-              title="Total Tamu Dilayani"
+              title={<span style={{ fontSize: 13 }}>Total Tamu Dilayani</span>}
               value={metrics.totalServed}
-              prefix={<CheckCircleOutlined style={{ color: "#52c41a" }} />}
-              suffix="selesai"
+              styles={{ content: { fontSize: 22, fontWeight: 700 } }}
+              prefix={<CheckCircleOutlined style={{ color: "#52c41a", fontSize: 18 }} />}
+              suffix={<span style={{ fontSize: 12 }}>selesai</span>}
             />
           </Card>
         </Col>
 
         <Col xs={12} sm={12} lg={6}>
-          <Card variant="borderless" style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+          <Card
+            variant="borderless"
+            styles={{ body: { padding: "14px 16px" } }}
+            style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}
+          >
             <Statistic
-              title="Rata-rata Menunggu"
+              title={<span style={{ fontSize: 13 }}>Rata-rata Menunggu</span>}
               value={metrics.avgWaitTime}
-              prefix={<ClockCircleOutlined style={{ color: "#1677ff" }} />}
-              suffix="menit"
+              styles={{ content: { fontSize: 22, fontWeight: 700 } }}
+              prefix={<ClockCircleOutlined style={{ color: "#1677ff", fontSize: 18 }} />}
+              suffix={<span style={{ fontSize: 12 }}>menit</span>}
             />
           </Card>
         </Col>
 
         <Col xs={12} sm={12} lg={6}>
-          <Card variant="borderless" style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+          <Card
+            variant="borderless"
+            styles={{ body: { padding: "14px 16px" } }}
+            style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}
+          >
             <Statistic
-              title="Durasi Makan Rata-rata"
+              title={<span style={{ fontSize: 13 }}>Durasi Makan Rata-rata</span>}
               value={metrics.avgDiningTime}
-              prefix={<CoffeeOutlined style={{ color: "#faad14" }} />}
-              suffix="menit"
+              styles={{ content: { fontSize: 22, fontWeight: 700 } }}
+              prefix={<CoffeeOutlined style={{ color: "#faad14", fontSize: 18 }} />}
+              suffix={<span style={{ fontSize: 12 }}>menit</span>}
             />
           </Card>
         </Col>
 
         <Col xs={12} sm={12} lg={6}>
-          <Card variant="borderless" style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+          <Card
+            variant="borderless"
+            styles={{ body: { padding: "14px 16px" } }}
+            style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}
+          >
             <Statistic
-              title="Tingkat Utilisasi Meja"
+              title={<span style={{ fontSize: 13 }}>Tingkat Utilisasi Meja</span>}
               value={metrics.utilizationRate}
-              prefix={<PieChartOutlined style={{ color: "#722ed1" }} />}
+              styles={{ content: { fontSize: 22, fontWeight: 700 } }}
+              prefix={<PieChartOutlined style={{ color: "#722ed1", fontSize: 18 }} />}
               suffix="%"
             />
           </Card>

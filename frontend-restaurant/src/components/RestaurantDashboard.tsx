@@ -28,6 +28,7 @@ import {
   Divider,
   Empty,
   Tabs,
+  Segmented,
 } from "antd";
 import {
   PlusOutlined,
@@ -571,69 +572,108 @@ export default function RestaurantDashboard() {
   return (
     <Space orientation="vertical" size="large" style={{ width: "100%" }}>
       {/* Top Statistic Highlights */}
-      <Row gutter={[16, 16]}>
+      <Row gutter={[12, 12]}>
         <Col xs={12} sm={6}>
-          <Card variant="borderless" style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+          <Card
+            variant="borderless"
+            styles={{ body: { padding: "14px 16px" } }}
+            style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}
+          >
             <Statistic
-              title="Total Meja"
+              title={<span style={{ fontSize: 13 }}>Total Meja</span>}
               value={tables.length}
-              prefix={<TableOutlined style={{ color: "#1677ff" }} />}
+              styles={{ content: { fontSize: 22, fontWeight: 700 } }}
+              prefix={<TableOutlined style={{ color: "#1677ff", fontSize: 18 }} />}
             />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
-          <Card variant="borderless" style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+          <Card
+            variant="borderless"
+            styles={{ body: { padding: "14px 16px" } }}
+            style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}
+          >
             <Statistic
-              title="Meja Kosong"
+              title={<span style={{ fontSize: 13 }}>Meja Kosong</span>}
               value={vacantCount}
-              styles={{ content: { color: "#52c41a" } }}
-              prefix={<CheckCircleOutlined />}
+              styles={{ content: { fontSize: 22, fontWeight: 700, color: "#52c41a" } }}
+              prefix={<CheckCircleOutlined style={{ fontSize: 18 }} />}
             />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
-          <Card variant="borderless" style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+          <Card
+            variant="borderless"
+            styles={{ body: { padding: "14px 16px" } }}
+            style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}
+          >
             <Statistic
-              title="Sedang Dining"
+              title={<span style={{ fontSize: 13 }}>Sedang Dining</span>}
               value={diningCount}
-              styles={{ content: { color: "#1677ff" } }}
-              prefix={<CoffeeOutlined />}
+              styles={{ content: { fontSize: 22, fontWeight: 700, color: "#1677ff" } }}
+              prefix={<CoffeeOutlined style={{ fontSize: 18 }} />}
             />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
-          <Card variant="borderless" style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+          <Card
+            variant="borderless"
+            styles={{ body: { padding: "14px 16px" } }}
+            style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}
+          >
             <Statistic
-              title="Antrean Menunggu"
+              title={<span style={{ fontSize: 13 }}>Antrean Menunggu</span>}
               value={queue.length}
-              styles={{ content: { color: "#faad14" } }}
-              prefix={<UsergroupAddOutlined />}
+              styles={{ content: { fontSize: 22, fontWeight: 700, color: "#faad14" } }}
+              prefix={<UsergroupAddOutlined style={{ fontSize: 18 }} />}
             />
           </Card>
         </Col>
       </Row>
 
       {/* Main Floor Plan & Queue Panel */}
-      <Row gutter={[20, 20]}>
+      <Row gutter={[16, 16]}>
         {/* Floor Plan Cards */}
         <Col xs={24} xl={16}>
           <Card
             variant="borderless"
+            styles={{
+              header: { padding: "14px 16px", borderBottom: "1px solid #f0f0f0" },
+              body: { padding: "16px" },
+            }}
             title={
-              <Space>
+              <Space align="center" size={8}>
                 <AppstoreOutlined style={{ color: "#1677ff" }} />
-                <span>Denah Meja Restoran</span>
+                <span style={{ fontWeight: 600 }}>Denah Meja Restoran</span>
+                <Tag color="blue" style={{ margin: 0, borderRadius: 10 }}>
+                  {tables.length} Meja
+                </Tag>
               </Space>
             }
             extra={
-              <Space wrap>
-                <Input.Search
-                  placeholder="Cari meja / tamu..."
-                  allowClear
-                  style={{ width: 180 }}
-                  value={tableSearchTerm}
-                  onChange={(e) => setTableSearchTerm(e.target.value)}
-                />
+              <Button icon={<ReloadOutlined />} onClick={fetchAll} size="small" />
+            }
+            style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}
+          >
+            {/* Responsive Action Toolbar */}
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 8,
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: 16,
+              }}
+            >
+              <Input.Search
+                placeholder="Cari meja / tamu..."
+                allowClear
+                style={{ flex: "1 1 180px", minWidth: 150, maxWidth: 280 }}
+                value={tableSearchTerm}
+                onChange={(e) => setTableSearchTerm(e.target.value)}
+              />
+              <Space wrap size={6}>
                 <Button
                   type="primary"
                   icon={<PlusOutlined />}
@@ -654,24 +694,22 @@ export default function RestaurantDashboard() {
                 >
                   Reservasi Meja
                 </Button>
-                <Button icon={<ReloadOutlined />} onClick={fetchAll} />
               </Space>
-            }
-            style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}
-          >
+            </div>
+
             {filteredTables.length === 0 ? (
               <Empty description="Tidak ada meja yang ditemukan." />
             ) : (
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))",
-                  gap: 16,
-                  padding: "16px",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 180px), 1fr))",
+                  gap: 12,
+                  padding: "12px",
                   background: "#f8fafc",
                   borderRadius: 12,
                   border: "1px dashed #d9d9d9",
-                  minHeight: 240,
+                  minHeight: 200,
                 }}
               >
                 {filteredTables.map((table) => {
@@ -1205,10 +1243,21 @@ export default function RestaurantDashboard() {
             {/* Arrive Form Card */}
             <Card
               variant="borderless"
+              styles={{
+                header: {
+                  padding: "16px 20px",
+                  borderBottom: "1px solid #f0f0f0",
+                },
+                body: {
+                  padding: "16px 20px",
+                },
+              }}
               title={
-                <Space>
-                  <UsergroupAddOutlined style={{ color: "#1677ff" }} />
-                  <span>Registrasi Tamu / Antrean</span>
+                <Space size={10}>
+                  <UsergroupAddOutlined style={{ color: "#1677ff", fontSize: 16 }} />
+                  <span style={{ fontWeight: 600, fontSize: 15, color: "#1f1f1f" }}>
+                    Registrasi Tamu / Antrean
+                  </span>
                 </Space>
               }
               style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}
@@ -1256,30 +1305,81 @@ export default function RestaurantDashboard() {
             {/* Waiting Queue Card */}
             <Card
               variant="borderless"
+              styles={{
+                header: {
+                  padding: "16px 20px",
+                  borderBottom: "1px solid #f0f0f0",
+                },
+                body: {
+                  padding: "16px 20px",
+                },
+              }}
               title={
-                <Space>
-                  <ClockCircleOutlined style={{ color: "#faad14" }} />
-                  <span>Antrean Menunggu</span>
-                  <Tag color="orange">{queue.length} Tamu</Tag>
-                </Space>
-              }
-              extra={
-                <Select
-                  size="small"
-                  value={queueSourceFilter}
-                  onChange={(val) => setQueueSourceFilter(val)}
-                  style={{ width: 110 }}
-                  options={[
-                    { label: "Semua", value: "all" },
-                    { label: "Walk-In", value: "walk_in" },
-                    { label: "Reservasi", value: "reservation" },
-                  ]}
-                />
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    width: "100%",
+                  }}
+                >
+                  <Space align="center" size={10}>
+                    <ClockCircleOutlined style={{ color: "#faad14", fontSize: 16 }} />
+                    <span style={{ fontWeight: 600, fontSize: 15, color: "#1f1f1f" }}>
+                      Antrean Menunggu
+                    </span>
+                  </Space>
+                  <Tag
+                    color={queue.length > 0 ? "orange" : "default"}
+                    style={{
+                      margin: 0,
+                      fontWeight: 600,
+                      borderRadius: 12,
+                      padding: "0 10px",
+                      fontSize: 12,
+                    }}
+                  >
+                    {queue.length} Tamu
+                  </Tag>
+                </div>
               }
               style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}
             >
+              {/* Filter Sumber Antrean (Segmented Pills) */}
+              <div style={{ marginBottom: 16 }}>
+                <Segmented
+                  block
+                  value={queueSourceFilter}
+                  onChange={(val) => setQueueSourceFilter(val as string)}
+                  options={[
+                    {
+                      label: `Semua (${queue.length})`,
+                      value: "all",
+                    },
+                    {
+                      label: `Walk-In (${queue.filter((m) => (m.source ?? "walk_in") === "walk_in").length})`,
+                      value: "walk_in",
+                    },
+                    {
+                      label: `Reservasi (${queue.filter((m) => m.source === "reservation").length})`,
+                      value: "reservation",
+                    },
+                  ]}
+                />
+              </div>
+
               {filteredQueue.length === 0 ? (
-                <Empty description="Tidak ada antrean menunggu saat ini." />
+                <Empty
+                  image={Empty.PRESENTED_IMAGE_SIMPLE}
+                  description={
+                    <span style={{ color: "#8c8c8c", fontSize: 13 }}>
+                      {queueSourceFilter === "all"
+                        ? "Tidak ada antrean menunggu saat ini."
+                        : `Tidak ada antrean ${queueSourceFilter === "walk_in" ? "Walk-In" : "Reservasi"}.`}
+                    </span>
+                  }
+                  style={{ margin: "24px 0" }}
+                />
               ) : (
                 <Space orientation="vertical" style={{ width: "100%" }} size="small">
                   {filteredQueue.map((member, idx) => {
@@ -1300,6 +1400,8 @@ export default function RestaurantDashboard() {
                             display: "flex",
                             justifyContent: "space-between",
                             alignItems: "flex-start",
+                            gap: 8,
+                            flexWrap: "wrap",
                           }}
                         >
                           <div>
@@ -1379,34 +1481,53 @@ export default function RestaurantDashboard() {
       {/* History and Analytics Sections */}
       <Card
         variant="borderless"
-        title="Riwayat Tamu Restoran"
-        extra={
-          <Space wrap>
-            <Input.Search
-              placeholder="Cari nama pelanggan..."
-              allowClear
-              style={{ width: 200 }}
-              value={historySearchTerm}
-              onChange={(e) => setHistorySearchTerm(e.target.value)}
-            />
-            <Select
-              value={historyStatusFilter}
-              onChange={(val) => setHistoryStatusFilter(val)}
-              style={{ width: 120 }}
-              options={[
-                { label: "Semua Status", value: "all" },
-                { label: "Selesai (Served)", value: "served" },
-                { label: "Dibatalkan", value: "cancelled" },
-              ]}
-            />
+        styles={{
+          header: { padding: "14px 16px", borderBottom: "1px solid #f0f0f0" },
+          body: { padding: "16px" },
+        }}
+        title={
+          <Space align="center" size={8}>
+            <ClockCircleOutlined style={{ color: "#1677ff" }} />
+            <span style={{ fontWeight: 600 }}>Riwayat Tamu Restoran</span>
           </Space>
         }
         style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}
       >
+        {/* Responsive History Toolbar */}
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 8,
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: 16,
+          }}
+        >
+          <Input.Search
+            placeholder="Cari nama pelanggan..."
+            allowClear
+            style={{ flex: "1 1 200px", maxWidth: 300 }}
+            value={historySearchTerm}
+            onChange={(e) => setHistorySearchTerm(e.target.value)}
+          />
+          <Select
+            value={historyStatusFilter}
+            onChange={(val) => setHistoryStatusFilter(val)}
+            style={{ width: 140 }}
+            options={[
+              { label: "Semua Status", value: "all" },
+              { label: "Selesai (Served)", value: "served" },
+              { label: "Dibatalkan", value: "cancelled" },
+            ]}
+          />
+        </div>
+
         <AntdTable
           dataSource={filteredHistory}
           rowKey="id"
-          pagination={{ pageSize: 8 }}
+          pagination={{ pageSize: 8, size: "small" }}
+          scroll={{ x: 620 }}
           columns={[
             {
               title: "Nama Pelanggan",
@@ -1480,6 +1601,7 @@ export default function RestaurantDashboard() {
         open={isAddTableOpen}
         onCancel={() => setIsAddTableOpen(false)}
         footer={null}
+        style={{ maxWidth: "calc(100vw - 24px)" }}
       >
         <form onSubmit={handleCreateTable}>
           <Space orientation="vertical" size="middle" style={{ width: "100%", marginTop: 16 }}>
@@ -1520,6 +1642,7 @@ export default function RestaurantDashboard() {
         onOk={handleMergeTables}
         okText="Gabungkan"
         cancelText="Batal"
+        style={{ maxWidth: "calc(100vw - 24px)" }}
       >
         <Space orientation="vertical" size="middle" style={{ width: "100%", marginTop: 16 }}>
           <Text type="secondary">
@@ -1557,6 +1680,7 @@ export default function RestaurantDashboard() {
         title={`Pre-Order Pesanan: ${selectedPreOrder?.customerName}`}
         open={preOrderModalOpen}
         onCancel={() => setPreOrderModalOpen(false)}
+        style={{ maxWidth: "calc(100vw - 24px)" }}
         footer={[
           <Button key="close" type="primary" onClick={() => setPreOrderModalOpen(false)}>
             Tutup
@@ -1602,6 +1726,7 @@ export default function RestaurantDashboard() {
         onOk={handleManualSeat}
         okText="Konfirmasi Duduk"
         cancelText="Batal"
+        style={{ maxWidth: "calc(100vw - 24px)" }}
       >
         {manualSeatMember && (
           <Space orientation="vertical" size="middle" style={{ width: "100%", marginTop: 16 }}>
@@ -1640,6 +1765,7 @@ export default function RestaurantDashboard() {
         cancelText="Batal"
         confirmLoading={isSubmittingReservation}
         width={520}
+        style={{ maxWidth: "calc(100vw - 24px)" }}
       >
         <Space orientation="vertical" size="middle" style={{ width: "100%", marginTop: 16 }}>
           <div>
