@@ -14,7 +14,8 @@ class QueueRepository implements QueueRepositoryInterface
 
     public function getActiveQueue()
     {
-        return QueueMember::where('status', 'waiting')
+        return QueueMember::with('table')
+            ->where('status', 'waiting')
             ->orderBy('party_size', 'desc')
             ->orderBy('joined_at', 'asc')
             ->get();
@@ -22,8 +23,10 @@ class QueueRepository implements QueueRepositoryInterface
 
     public function getHistory()
     {
-        return QueueMember::whereIn('status', ['served', 'cancelled'])
+        return QueueMember::with('table')
+            ->whereIn('status', ['served', 'cancelled'])
             ->orderBy('completed_at', 'desc')
+            ->limit(50)
             ->get();
     }
 

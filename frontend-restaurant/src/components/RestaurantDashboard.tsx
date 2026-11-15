@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useTransition } from "react";
+import React, { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { playChime, speakQueueCall } from "@/lib/sound";
@@ -181,6 +181,10 @@ export default function RestaurantDashboard() {
     notes: "",
   });
   const [isSubmittingReservation, setIsSubmittingReservation] = useState(false);
+  const [dateReservations, setDateReservations] = useState<
+    Array<{ id: number; table_id: string; start_time: string; end_time: string; status: string }>
+  >([]);
+  const [isLoadingDateReservations, setIsLoadingDateReservations] = useState(false);
 
   // Filter States
   const [tableSearchTerm, setTableSearchTerm] = useState("");
@@ -223,16 +227,83 @@ export default function RestaurantDashboard() {
   };
 
   usePieSocket({
-    onMessage: () => {
-      fetchAll();
+    onMessage: (msg: any) => {
+      fetchStatus();
+      if (msg?.event === "table_served") {
+        fetchHistory();
+      }
     },
   });
 
   useEffect(() => {
-    fetchAll();
-    const id = setInterval(fetchAll, 6_000);
+    fetchStatus();
+    fetchHistory();
+
+    // Gentle 30s background heartbeat (only for status, only when tab is visible)
+    const id = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+        fetchStatus();
+      }
+    }, 30_000);
+
     return () => clearInterval(id);
   }, []);
+
+  useEffect(() => {
+    if (!isReservationModalOpen || !resForm.reservation_date) return;
+    let active = true;
+    const loadDateReservations = async () => {
+      setIsLoadingDateReservations(true);
+      try {
+        const res = await fetch(`${API}/pos/reservations?date=${resForm.reservation_date}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (active) setDateReservations(Array.isArray(data) ? data : []);
+        }
+      } catch {
+        // silent fallback
+      } finally {
+        if (active) setIsLoadingDateReservations(false);
+      }
+    };
+    loadDateReservations();
+    return () => {
+      active = false;
+    };
+  }, [isReservationModalOpen, resForm.reservation_date, API]);
+
+  const calculatedEndTime = useMemo(() => {
+    if (resForm.end_time) return resForm.end_time;
+    const [h, m] = (resForm.start_time || "18:00").split(":").map(Number);
+    const endH = String((h + 2) % 24).padStart(2, "0");
+    return `${endH}:${String(m || 0).padStart(2, "0")}`;
+  }, [resForm.start_time, resForm.end_time]);
+
+  const reservationTableOptions = useMemo(() => {
+    const startTime = (resForm.start_time || "18:00").slice(0, 5);
+    const endTime = calculatedEndTime.slice(0, 5);
+
+    return tables
+      .filter((t) => t.capacity >= resForm.party_size)
+      .sort((a, b) => a.capacity - b.capacity)
+      .map((t) => {
+        const conflict = dateReservations.find((r) => {
+          if (r.table_id !== t.id) return false;
+          if (!["confirmed", "arrived", "seated"].includes(r.status)) return false;
+          const rStart = (r.start_time || "").slice(0, 5);
+          const rEnd = (r.end_time || "").slice(0, 5);
+          return startTime < rEnd && endTime > rStart;
+        });
+
+        return {
+          label: conflict
+            ? `Meja ${t.id} (Kapasitas ${t.capacity}) — Sudah dipesan (${conflict.start_time.slice(0, 5)} - ${conflict.end_time.slice(0, 5)})`
+            : `Meja ${t.id} — kapasitas ${t.capacity} orang (Tersedia)`,
+          value: t.id,
+          disabled: Boolean(conflict),
+        };
+      });
+  }, [tables, resForm.party_size, resForm.start_time, calculatedEndTime, dateReservations]);
 
   // Handlers
   const handleArrive = (e?: React.FormEvent) => {
@@ -508,6 +579,7 @@ export default function RestaurantDashboard() {
         body: JSON.stringify({
           customer_name: table.reservation.customer_name,
           party_size: table.reservation.party_size,
+          reservation_id: table.reservation.id,
         }),
       });
       const d = await res.json();
@@ -1796,26 +1868,6 @@ export default function RestaurantDashboard() {
               style={{ width: "100%", marginTop: 4 }}
             />
           </div>
-          <div>
-            <Text strong>Pilih Meja <span style={{ color: "#ff4d4f" }}>*</span></Text>
-            <Select
-              placeholder="Pilih meja yang akan dipesan"
-              value={resForm.table_id || undefined}
-              onChange={(val) => setResForm((f) => ({ ...f, table_id: val }))}
-              style={{ width: "100%", marginTop: 4 }}
-              options={tables
-                .filter((t) => t.status === "vacant" && t.capacity >= resForm.party_size && !t.reservation)
-                .map((t) => ({
-                  label: `Meja ${t.id} — kapasitas ${t.capacity} orang`,
-                  value: t.id,
-                }))}
-            />
-            {resForm.table_id && (
-              <Text type="secondary" style={{ fontSize: 11 }}>
-                Kapasitas meja: {tables.find((t) => t.id === resForm.table_id)?.capacity ?? "—"} orang
-              </Text>
-            )}
-          </div>
           <Row gutter={8}>
             <Col span={12}>
               <Text strong>Tanggal Reservasi <span style={{ color: "#ff4d4f" }}>*</span></Text>
@@ -1823,7 +1875,7 @@ export default function RestaurantDashboard() {
                 type="date"
                 min={new Date().toISOString().slice(0, 10)}
                 value={resForm.reservation_date}
-                onChange={(e) => setResForm((f) => ({ ...f, reservation_date: e.target.value }))}
+                onChange={(e) => setResForm((f) => ({ ...f, reservation_date: e.target.value, table_id: "" }))}
                 style={{ marginTop: 4 }}
               />
             </Col>
@@ -1832,11 +1884,27 @@ export default function RestaurantDashboard() {
               <Input
                 type="time"
                 value={resForm.start_time}
-                onChange={(e) => setResForm((f) => ({ ...f, start_time: e.target.value }))}
+                onChange={(e) => setResForm((f) => ({ ...f, start_time: e.target.value, table_id: "" }))}
                 style={{ marginTop: 4 }}
               />
             </Col>
           </Row>
+          <div>
+            <Text strong>Pilih Meja <span style={{ color: "#ff4d4f" }}>*</span></Text>
+            <Select
+              placeholder={isLoadingDateReservations ? "Memeriksa ketersediaan meja..." : "Pilih meja yang akan dipesan"}
+              value={resForm.table_id || undefined}
+              onChange={(val) => setResForm((f) => ({ ...f, table_id: val }))}
+              style={{ width: "100%", marginTop: 4 }}
+              loading={isLoadingDateReservations}
+              options={reservationTableOptions}
+            />
+            {resForm.table_id && (
+              <Text type="secondary" style={{ fontSize: 11 }}>
+                Kapasitas meja: {tables.find((t) => t.id === resForm.table_id)?.capacity ?? "—"} orang
+              </Text>
+            )}
+          </div>
           <div>
             <Text strong>Catatan (opsional)</Text>
             <Input.TextArea

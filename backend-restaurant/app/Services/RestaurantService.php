@@ -39,13 +39,14 @@ class RestaurantService
      * Find the best table matching party size.
      * Rules: closest capacity (no oversize).
      */
-    public function findBestTable(int $partySize): ?Table
+    public function findBestTable(int $partySize, ?array $reservedTableIds = null): ?Table
     {
+        $reservedTableIds ??= $this->getReservedTableIds();
         $vacantTables = $this->tableRepository->getVacantTables();
 
         // Cari meja yang kapasitasnya cukup, diurutkan dari selisih kapasitas terkecil (paling optimal)
         return $vacantTables
-            ->filter(fn ($table) => $table->capacity >= $partySize && $table->status === 'vacant' && !$this->hasUpcomingReservation($table))
+            ->filter(fn ($table) => $table->capacity >= $partySize && $table->status === 'vacant' && !in_array($table->id, $reservedTableIds, true))
             ->sortBy(fn ($table) => $table->capacity - $partySize)
             ->first();
     }
@@ -101,22 +102,38 @@ class RestaurantService
     public function processWaitingQueue(): void
     {
         $activeQueue = $this->queueRepository->getActiveQueue();
+        if ($activeQueue->isEmpty()) {
+            return;
+        }
+
+        // Batch pre-fetch all reservation table bindings in 1 query (prevents N+1)
+        $reservationIds = $activeQueue->pluck('reservation_id')->filter()->unique()->all();
+        $reservationTableMap = [];
+        if (!empty($reservationIds)) {
+            $reservationTableMap = DB::table('pos_reservations')
+                ->join('pos_reservation_spaces', 'pos_reservations.space_id', '=', 'pos_reservation_spaces.id')
+                ->whereIn('pos_reservations.id', $reservationIds)
+                ->pluck('pos_reservation_spaces.table_id', 'pos_reservations.id')
+                ->all();
+        }
+
+        $reservedTableIds = $this->getReservedTableIds();
+
         foreach ($activeQueue as $customer) {
             if ($customer->reservation_id) {
-                $reservedTableId = DB::table('pos_reservations')
-                    ->join('pos_reservation_spaces', 'pos_reservations.space_id', '=', 'pos_reservation_spaces.id')
-                    ->where('pos_reservations.id', $customer->reservation_id)
-                    ->value('pos_reservation_spaces.table_id');
+                $reservedTableId = $reservationTableMap[$customer->reservation_id] ?? null;
                 $reservedTable = $reservedTableId ? $this->tableRepository->find($reservedTableId) : null;
                 if ($reservedTable && in_array($reservedTable->status, ['vacant', 'reserved'], true) && $reservedTable->capacity >= $customer->party_size) {
                     $this->seatCustomer($customer, $reservedTable);
                 } elseif (!$reservedTable) {
-                    $fallbackTable = $this->findBestTable($customer->party_size);
-                    if ($fallbackTable) $this->seatCustomer($customer, $fallbackTable);
+                    $fallbackTable = $this->findBestTable($customer->party_size, $reservedTableIds);
+                    if ($fallbackTable) {
+                        $this->seatCustomer($customer, $fallbackTable);
+                    }
                 }
                 continue;
             }
-            $table = $this->findBestTable($customer->party_size);
+            $table = $this->findBestTable($customer->party_size, $reservedTableIds);
             if ($table) {
                 $this->seatCustomer($customer, $table);
             }
@@ -239,16 +256,24 @@ class RestaurantService
         }
     }
 
-    private function hasUpcomingReservation(Table $table): bool
+    public function getReservedTableIds(int $withinMinutes = 150): array
     {
-        $until = Carbon::now()->addMinutes(150);
+        $until = Carbon::now()->addMinutes($withinMinutes);
         return DB::table('pos_reservations')
             ->join('pos_reservation_spaces', 'pos_reservations.space_id', '=', 'pos_reservation_spaces.id')
-            ->where('pos_reservation_spaces.table_id', $table->id)
             ->whereIn('pos_reservations.status', ['confirmed', 'arrived'])
             ->whereDate('pos_reservations.reservation_date', now()->toDateString())
             ->where('pos_reservations.start_time', '<=', $until->format('H:i:s'))
             ->where('pos_reservations.end_time', '>', now()->format('H:i:s'))
-            ->exists();
+            ->pluck('pos_reservation_spaces.table_id')
+            ->filter()
+            ->unique()
+            ->all();
+    }
+
+    public function hasUpcomingReservation(Table $table, ?array $reservedTableIds = null): bool
+    {
+        $reservedTableIds ??= $this->getReservedTableIds();
+        return in_array($table->id, $reservedTableIds, true);
     }
 }

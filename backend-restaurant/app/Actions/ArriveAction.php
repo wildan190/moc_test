@@ -7,6 +7,7 @@ use App\Repositories\Contracts\QueueRepositoryInterface;
 use App\Services\RestaurantService;
 use App\Services\PieSocketService;
 use App\Models\QueueMember;
+use Illuminate\Support\Facades\DB;
 
 class ArriveAction
 {
@@ -27,13 +28,24 @@ class ArriveAction
     public function execute(ArriveRequest $request): QueueMember
     {
         $data = $request->validated();
+        $reservationId = $data['reservation_id'] ?? null;
 
         $customer = $this->queueRepository->create([
             'customer_name' => $data['customer_name'],
             'party_size' => $data['party_size'],
             'status' => 'waiting',
-            'source' => 'walk_in',
+            'source' => $reservationId ? 'reservation' : 'walk_in',
+            'reservation_id' => $reservationId,
         ]);
+
+        if ($reservationId) {
+            DB::table('pos_reservations')->where('id', $reservationId)->update([
+                'status' => 'arrived',
+                'queue_member_id' => $customer->id,
+                'arrived_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
 
         $this->restaurantService->processWaitingQueue();
 

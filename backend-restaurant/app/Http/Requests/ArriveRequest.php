@@ -16,6 +16,7 @@ class ArriveRequest extends FormRequest
         return [
             'customer_name' => 'required|string|max:255',
             'party_size' => 'required|integer|min:1|max:8',
+            'reservation_id' => 'nullable|integer|exists:pos_reservations,id',
         ];
     }
 }
