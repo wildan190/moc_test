@@ -11,7 +11,7 @@ services:
   # Routes /api and /storage to Laravel, routes / to Next.js
   # ============================================================================
   nginx:
-    image: ${NGINX_IMAGE:-nginx:alpine}
+    image: ${NGINX_IMAGE:-ghcr.io/wildan190/moc_test/nginx:alpine}
     container_name: resto_coolify_nginx
     restart: always
     expose:
@@ -130,7 +130,7 @@ services:
   # CACHE & QUEUE: Redis 7 Alpine
   # ============================================================================
   redis:
-    image: ${REDIS_IMAGE:-redis:7-alpine}
+    image: ${REDIS_IMAGE:-ghcr.io/wildan190/moc_test/redis:7-alpine}
     container_name: resto_coolify_redis
     restart: always
     command: >
@@ -152,7 +152,7 @@ services:
   # DATABASE: PostgreSQL 18 Alpine
   # ============================================================================
   postgres:
-    image: ${POSTGRES_IMAGE:-postgres:18-alpine}
+    image: ${POSTGRES_IMAGE:-ghcr.io/wildan190/moc_test/postgres:18-alpine}
     container_name: resto_coolify_postgres
     restart: always
     environment:

@@ -151,6 +151,26 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       # ------------------------------------------------------------------------
+      # Mirror Base Images to GHCR (Zero TCP resets on VPS)
+      # ------------------------------------------------------------------------
+      - name: Mirror Base Images to GHCR (PostgreSQL 18, Redis 7, Nginx)
+        run: |
+          echo "Mirroring postgres:18-alpine..."
+          docker pull postgres:18-alpine
+          docker tag postgres:18-alpine ghcr.io/${{ github.repository }}/postgres:18-alpine
+          docker push ghcr.io/${{ github.repository }}/postgres:18-alpine
+
+          echo "Mirroring redis:7-alpine..."
+          docker pull redis:7-alpine
+          docker tag redis:7-alpine ghcr.io/${{ github.repository }}/redis:7-alpine
+          docker push ghcr.io/${{ github.repository }}/redis:7-alpine
+
+          echo "Mirroring nginx:alpine..."
+          docker pull nginx:alpine
+          docker tag nginx:alpine ghcr.io/${{ github.repository }}/nginx:alpine
+          docker push ghcr.io/${{ github.repository }}/nginx:alpine
+
+      # ------------------------------------------------------------------------
       # Build & Push: Backend Image (PHP 8.4-FPM Production)
       # ------------------------------------------------------------------------
       - name: Build & Push Backend Docker Image
