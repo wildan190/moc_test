@@ -165,9 +165,8 @@ jobs:
           docker tag redis:7-alpine ghcr.io/${{ github.repository }}/redis:7-alpine
           docker push ghcr.io/${{ github.repository }}/redis:7-alpine
 
-          echo "Mirroring nginx:alpine..."
-          docker pull nginx:alpine
-          docker tag nginx:alpine ghcr.io/${{ github.repository }}/nginx:alpine
+          echo "Building & pushing nginx with production config baked in..."
+          docker build -t ghcr.io/${{ github.repository }}/nginx:alpine -f deploy/nginx/Dockerfile .
           docker push ghcr.io/${{ github.repository }}/nginx:alpine
 
       # ------------------------------------------------------------------------
