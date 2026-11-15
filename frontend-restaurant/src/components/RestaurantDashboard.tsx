@@ -1528,16 +1528,18 @@ export default function RestaurantDashboard() {
                                 onClick={() => callCustomer(member)}
                               />
                             </Tooltip>
-                            <Button
-                              type="primary"
-                              size="small"
-                              onClick={() => {
-                                setManualSeatMember(member);
-                                setManualSeatTableId(recTable ?? "");
-                              }}
-                            >
-                              Dudukkan
-                            </Button>
+                            {member.status === "waiting" && !member.seated_at && (
+                              <Button
+                                type="primary"
+                                size="small"
+                                onClick={() => {
+                                  setManualSeatMember(member);
+                                  setManualSeatTableId(recTable ?? "");
+                                }}
+                              >
+                                Dudukkan
+                              </Button>
+                            )}
                           </Space>
                         </div>
                       </Card>
