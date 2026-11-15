@@ -154,7 +154,7 @@ services:
     expose:
       - "80"
     environment:
-      - SERVICE_FQDN_NGINX_80
+      - SERVICE_FQDN_NGINX_80=${SERVICE_FQDN_NGINX_80:-https://dishy.phoenixtech.web.id,https://api-dishy.phoenixtech.web.id}
     volumes:
       - backend_public_storage:/var/www/public/storage:ro
     depends_on:

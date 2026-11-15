@@ -23,7 +23,7 @@ services:
       - backend
     environment:
       # Coolify automatically routes your domain and provisions SSL for this port
-      - SERVICE_FQDN_NGINX_80
+      - SERVICE_FQDN_NGINX_80=${SERVICE_FQDN_NGINX_80:-https://dishy.phoenixtech.web.id,https://api-dishy.phoenixtech.web.id}
     networks:
       - resto_net
 
