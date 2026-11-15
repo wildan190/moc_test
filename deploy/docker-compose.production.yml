@@ -11,7 +11,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:-manchester}
       POSTGRES_DB: ${DB_DATABASE:-db_moc}
     volumes:
-      - postgres_production_data:/var/lib/postgresql/data
+      - postgres_production_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB || pg_isready -U ${DB_USERNAME:-root} -d ${DB_DATABASE:-db_moc} || pg_isready"]
       interval: 5s
@@ -166,7 +166,7 @@ services:
 # ==============================================================================
 volumes:
   postgres_production_data:
-    name: resto_postgres_data
+    name: resto_postgres_data_v18
   redis_production_data:
     name: resto_redis_data
   backend_storage:
