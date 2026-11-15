@@ -31,9 +31,10 @@ if [ ! -L /var/www/public/storage ]; then
     php artisan storage:link || true
 fi
 
-# Run database migrations
-echo "Running database migrations..."
+# Run database migrations and essential seeders
+echo "Running database migrations and seeders..."
 php artisan migrate --force || true
+php artisan db:seed --force || true
 
 # Cache configurations for maximum production performance
 echo "Caching configuration, routes, and views..."
