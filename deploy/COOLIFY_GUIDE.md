@@ -59,5 +59,12 @@ NEXT_PUBLIC_APP_URL=https://resto.domainanda.com
   - Name: `COOLIFY_WEBHOOK_URL`
   - Value: *(Paste URL Webhook Coolify tadi)*.
 
+#### 6. Pastikan Image di GitHub Packages Bersifat Public (Agar Coolify bisa pull)
+Secara default, paket baru di GitHub bersifat private. Agar server Coolify bisa mendownload image tanpa perlu token login:
+1. Di GitHub, buka profil Anda atau repo > klik tab **Packages**.
+2. Klik package `backend` > **Package settings** (di menu kanan) > scroll ke bawah > **Change visibility** > pilih **Public**.
+3. Lakukan hal yang sama untuk package `frontend`.
+*(Atau jika tetap ingin Private, Anda cukup menambahkan Personal Access Token GitHub Anda di menu Coolify: **Sources** > **Docker Registries** > add `ghcr.io`).*
+
 Selesai! Setiap kali Anda melakukan `git push` ke `main`, GitHub Actions akan membuild image dan Coolify akan otomatis mengupdate aplikasinya secara instan tanpa membuat server lemot!
 

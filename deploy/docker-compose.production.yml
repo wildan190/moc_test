@@ -9,11 +9,11 @@ services:
     environment:
       POSTGRES_USER: ${DB_USERNAME:-root}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-manchester}
-      POSTGRES_DB: ${DB_DATABASE:-db_dishy}
+      POSTGRES_DB: ${DB_DATABASE:-db_moc}
     volumes:
       - postgres_production_data:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${DB_USERNAME:-root} -d ${DB_DATABASE:-db_moc}" ]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-root} -d ${DB_DATABASE:-db_moc}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -28,11 +28,14 @@ services:
     container_name: resto_production_redis
     restart: always
     command: >
-      redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+      redis-server
+      --appendonly yes
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
     volumes:
       - redis_production_data:/data
     healthcheck:
-      test: [ "CMD", "redis-cli", "ping" ]
+      test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -41,20 +44,17 @@ services:
 
   # ============================================================================
   # BACKEND: Laravel PHP 8.4-FPM
-  # Prebuilt via GitHub Actions to eliminate server build CPU/RAM overhead
+  # Prebuilt via GitHub Actions (Zero server build overhead)
   # ============================================================================
   backend:
-    image: ${CONTAINER_REGISTRY:-ghcr.io}/${GITHUB_REPOSITORY:-wildanbelfiore/moc_test}/backend:${IMAGE_TAG:-latest}
-    build:
-      context: ../backend-restaurant
-      dockerfile: Dockerfile.prod
+    image: ${CONTAINER_REGISTRY:-ghcr.io}/${GITHUB_REPOSITORY:-wildan190/moc_test}/backend:${IMAGE_TAG:-latest}
     container_name: resto_production_backend
     restart: always
     environment:
       APP_ENV: production
       APP_DEBUG: ${APP_DEBUG:-false}
       APP_URL: ${APP_URL:-http://localhost}
-      APP_KEY: ${APP_KEY}
+      APP_KEY: ${APP_KEY:-base64:7KqT41vL5Q0H9g1X6jR3sW8eF2mP0yA4zN8cT6vB1eI=}
       DB_CONNECTION: pgsql
       DB_HOST: postgres
       DB_PORT: 5432
@@ -68,8 +68,8 @@ services:
       SESSION_DRIVER: redis
       QUEUE_CONNECTION: redis
       PIESOCKET_CLUSTER_ID: ${PIESOCKET_CLUSTER_ID:-free.blr2}
-      PIESOCKET_API_KEY: ${PIESOCKET_API_KEY}
-      PIESOCKET_API_SECRET: ${PIESOCKET_API_SECRET}
+      PIESOCKET_API_KEY: ${PIESOCKET_API_KEY:-F6y6bNEzxhFn3gkxubwElu1KPdFHuRKzICDsfPO9}
+      PIESOCKET_API_SECRET: ${PIESOCKET_API_SECRET:-Tsi2GnghMJFvYtBnm7n1T9SxvgFVOD67}
       PIESOCKET_CHANNEL_ID: ${PIESOCKET_CHANNEL_ID:-1}
     volumes:
       - backend_storage:/var/www/storage
@@ -87,14 +87,14 @@ services:
   # Uses the exact same prebuilt backend image, zero server compilation overhead
   # ============================================================================
   queue-worker:
-    image: ${CONTAINER_REGISTRY:-ghcr.io}/${GITHUB_REPOSITORY:-wildanbelfiore/moc_test}/backend:${IMAGE_TAG:-latest}
+    image: ${CONTAINER_REGISTRY:-ghcr.io}/${GITHUB_REPOSITORY:-wildan190/moc_test}/backend:${IMAGE_TAG:-latest}
     container_name: resto_production_queue_worker
     restart: always
     command: php artisan queue:work redis --sleep=3 --tries=3 --max-time=3600 --timeout=90
     environment:
       APP_ENV: production
       APP_DEBUG: ${APP_DEBUG:-false}
-      APP_KEY: ${APP_KEY}
+      APP_KEY: ${APP_KEY:-base64:7KqT41vL5Q0H9g1X6jR3sW8eF2mP0yA4zN8cT6vB1eI=}
       DB_CONNECTION: pgsql
       DB_HOST: postgres
       DB_PORT: 5432
@@ -122,10 +122,7 @@ services:
   # Prebuilt via GitHub Actions, minimal alpine image (< 180MB)
   # ============================================================================
   frontend:
-    image: ${CONTAINER_REGISTRY:-ghcr.io}/${GITHUB_REPOSITORY:-wildanbelfiore/moc_test}/frontend:${IMAGE_TAG:-latest}
-    build:
-      context: ../frontend-restaurant
-      dockerfile: Dockerfile
+    image: ${CONTAINER_REGISTRY:-ghcr.io}/${GITHUB_REPOSITORY:-wildan190/moc_test}/frontend:${IMAGE_TAG:-latest}
     container_name: resto_production_frontend
     restart: always
     environment:
@@ -134,9 +131,9 @@ services:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api}
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost}
       NEXT_PUBLIC_PIESOCKET_CLUSTER_ID: ${PIESOCKET_CLUSTER_ID:-free.blr2}
-      NEXT_PUBLIC_PIESOCKET_API_KEY: ${PIESOCKET_API_KEY}
+      NEXT_PUBLIC_PIESOCKET_API_KEY: ${PIESOCKET_API_KEY:-F6y6bNEzxhFn3gkxubwElu1KPdFHuRKzICDsfPO9}
       NEXT_PUBLIC_PIESOCKET_CHANNEL_ID: ${PIESOCKET_CHANNEL_ID:-1}
-      NEXT_PUBLIC_PIESOCKET_WS_URL: ${NEXT_PUBLIC_PIESOCKET_WS_URL}
+      NEXT_PUBLIC_PIESOCKET_WS_URL: ${NEXT_PUBLIC_PIESOCKET_WS_URL:-wss://free.blr2.piesocket.com/v3/1?api_key=F6y6bNEzxhFn3gkxubwElu1KPdFHuRKzICDsfPO9&notify_self=1}
     depends_on:
       - backend
     networks:

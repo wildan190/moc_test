@@ -19,12 +19,19 @@ COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
+# Increase Node heap memory to prevent OOM during build
+ENV NODE_OPTIONS="--max-old-space-size=2048"
 
-# Public API URL can be passed at build time or defaults to relative /api
+# Public API URL & build args with safe defaults
 ARG NEXT_PUBLIC_API_URL="/api"
 ARG NEXT_PUBLIC_APP_URL="http://localhost"
+ARG BETTER_AUTH_SECRET="ci-build-secret"
+ARG DATABASE_URL="postgresql://root:manchester@localhost:5432/db_moc"
+
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
+ENV BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET
+ENV DATABASE_URL=$DATABASE_URL
 
 RUN npm run build
 
@@ -53,4 +60,3 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/ || exit 1
 
 CMD ["node", "server.js"]
-

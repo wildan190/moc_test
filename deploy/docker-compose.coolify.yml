@@ -1,7 +1,7 @@
 # ==============================================================================
 # Coolify Production Docker Compose (deploy/docker-compose.coolify.yml)
 # Optimized for Coolify v4 (Traefik / Caddy Reverse Proxy & Auto SSL)
-# Uses pre-built images from GitHub Actions to keep Coolify server CPU/RAM near 0
+# Uses pre-built images from GitHub Actions (Zero server build CPU/RAM overhead)
 # ==============================================================================
 
 services:
@@ -32,7 +32,7 @@ services:
   # FRONTEND: Next.js (Pre-built in GitHub Actions, Standalone Runner)
   # ============================================================================
   frontend:
-    image: ${CONTAINER_REGISTRY:-ghcr.io}/${GITHUB_REPOSITORY:-wildanbelfiore/moc_test}/frontend:${IMAGE_TAG:-latest}
+    image: ${CONTAINER_REGISTRY:-ghcr.io}/${GITHUB_REPOSITORY:-wildan190/moc_test}/frontend:${IMAGE_TAG:-latest}
     container_name: resto_coolify_frontend
     restart: always
     expose:
@@ -55,7 +55,7 @@ services:
   # BACKEND: Laravel PHP 8.4-FPM (Pre-built in GitHub Actions)
   # ============================================================================
   backend:
-    image: ${CONTAINER_REGISTRY:-ghcr.io}/${GITHUB_REPOSITORY:-wildanbelfiore/moc_test}/backend:${IMAGE_TAG:-latest}
+    image: ${CONTAINER_REGISTRY:-ghcr.io}/${GITHUB_REPOSITORY:-wildan190/moc_test}/backend:${IMAGE_TAG:-latest}
     container_name: resto_coolify_backend
     restart: always
     expose:
@@ -64,7 +64,7 @@ services:
       APP_ENV: production
       APP_DEBUG: ${APP_DEBUG:-false}
       APP_URL: ${APP_URL:-http://localhost}
-      APP_KEY: ${APP_KEY}
+      APP_KEY: ${APP_KEY:-base64:7KqT41vL5Q0H9g1X6jR3sW8eF2mP0yA4zN8cT6vB1eI=}
       DB_CONNECTION: pgsql
       DB_HOST: postgres
       DB_PORT: 5432
@@ -96,14 +96,14 @@ services:
   # QUEUE WORKER: Laravel Redis Background Worker
   # ============================================================================
   queue-worker:
-    image: ${CONTAINER_REGISTRY:-ghcr.io}/${GITHUB_REPOSITORY:-wildanbelfiore/moc_test}/backend:${IMAGE_TAG:-latest}
+    image: ${CONTAINER_REGISTRY:-ghcr.io}/${GITHUB_REPOSITORY:-wildan190/moc_test}/backend:${IMAGE_TAG:-latest}
     container_name: resto_coolify_queue_worker
     restart: always
     command: php artisan queue:work redis --sleep=3 --tries=3 --max-time=3600 --timeout=90
     environment:
       APP_ENV: production
       APP_DEBUG: ${APP_DEBUG:-false}
-      APP_KEY: ${APP_KEY}
+      APP_KEY: ${APP_KEY:-base64:7KqT41vL5Q0H9g1X6jR3sW8eF2mP0yA4zN8cT6vB1eI=}
       DB_CONNECTION: pgsql
       DB_HOST: postgres
       DB_PORT: 5432
@@ -178,4 +178,3 @@ volumes:
 networks:
   resto_net:
     driver: bridge
-
