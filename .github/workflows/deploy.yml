@@ -194,8 +194,8 @@ jobs:
           file: ./frontend-restaurant/Dockerfile
           push: true
           build-args: |
-            NEXT_PUBLIC_API_URL=/api
-            NEXT_PUBLIC_APP_URL=http://localhost
+            NEXT_PUBLIC_API_URL=https://api-dishy.phoenixtech.web.id/api
+            NEXT_PUBLIC_APP_URL=https://dishy.phoenixtech.web.id
           tags: |
             ${{ env.FRONTEND_IMAGE }}:latest
             ${{ env.FRONTEND_IMAGE }}:${{ github.sha }}

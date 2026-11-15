@@ -23,8 +23,8 @@ ENV NODE_ENV=production
 ENV NODE_OPTIONS="--max-old-space-size=2048"
 
 # Public API URL & build args with safe defaults
-ARG NEXT_PUBLIC_API_URL="/api"
-ARG NEXT_PUBLIC_APP_URL="http://localhost"
+ARG NEXT_PUBLIC_API_URL="https://api-dishy.phoenixtech.web.id/api"
+ARG NEXT_PUBLIC_APP_URL="https://dishy.phoenixtech.web.id"
 ARG BETTER_AUTH_SECRET="ci-build-secret"
 ARG DATABASE_URL="postgresql://root:manchester@localhost:5432/db_moc"
 

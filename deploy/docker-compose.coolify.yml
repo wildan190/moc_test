@@ -39,8 +39,8 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api}
-      NEXT_PUBLIC_APP_URL: ${APP_URL:-http://localhost}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://api-dishy.phoenixtech.web.id/api}
+      NEXT_PUBLIC_APP_URL: ${APP_URL:-https://dishy.phoenixtech.web.id}
       NEXT_PUBLIC_PIESOCKET_CLUSTER_ID: ${PIESOCKET_CLUSTER_ID:-free.blr2}
       NEXT_PUBLIC_PIESOCKET_API_KEY: ${PIESOCKET_API_KEY:-F6y6bNEzxhFn3gkxubwElu1KPdFHuRKzICDsfPO9}
       NEXT_PUBLIC_PIESOCKET_CHANNEL_ID: ${PIESOCKET_CHANNEL_ID:-1}
@@ -62,7 +62,9 @@ services:
     environment:
       APP_ENV: production
       APP_DEBUG: ${APP_DEBUG:-false}
-      APP_URL: ${APP_URL:-http://localhost}
+      APP_URL: ${APP_URL:-https://api-dishy.phoenixtech.web.id}
+      FRONTEND_URL: ${FRONTEND_URL:-https://dishy.phoenixtech.web.id}
+      SANCTUM_STATEFUL_DOMAINS: ${SANCTUM_STATEFUL_DOMAINS:-dishy.phoenixtech.web.id}
       APP_KEY: ${APP_KEY:-base64:7KqT41vL5Q0H9g1X6jR3sW8eF2mP0yA4zN8cT6vB1eI=}
       DB_CONNECTION: pgsql
       DB_HOST: postgres
