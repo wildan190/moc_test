@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useTransition } from "react";
+import React, { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { playChime, speakQueueCall } from "@/lib/sound";
@@ -227,14 +227,25 @@ export default function RestaurantDashboard() {
   };
 
   usePieSocket({
-    onMessage: () => {
-      fetchAll();
+    onMessage: (msg: any) => {
+      fetchStatus();
+      if (msg?.event === "table_served") {
+        fetchHistory();
+      }
     },
   });
 
   useEffect(() => {
-    fetchAll();
-    const id = setInterval(fetchAll, 6_000);
+    fetchStatus();
+    fetchHistory();
+
+    // Gentle 30s background heartbeat (only for status, only when tab is visible)
+    const id = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+        fetchStatus();
+      }
+    }, 30_000);
+
     return () => clearInterval(id);
   }, []);
 
