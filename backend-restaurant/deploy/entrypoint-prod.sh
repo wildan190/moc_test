@@ -21,10 +21,19 @@ if [ -n "$REDIS_HOST" ]; then
     echo "Redis is reachable!"
 fi
 
+# Ensure storage permissions and directories exist in mounted volume
+mkdir -p /var/www/storage/logs /var/www/storage/framework/cache/data /var/www/storage/framework/sessions /var/www/storage/framework/views
+chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache || true
+chmod -R 775 /var/www/storage /var/www/bootstrap/cache || true
+
 # Ensure storage link exists
 if [ ! -L /var/www/public/storage ]; then
     php artisan storage:link || true
 fi
+
+# Run database migrations
+echo "Running database migrations..."
+php artisan migrate --force || true
 
 # Cache configurations for maximum production performance
 echo "Caching configuration, routes, and views..."
