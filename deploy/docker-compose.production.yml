@@ -142,16 +142,17 @@ services:
       - resto_production_net
 
   # ============================================================================
-  # NGINX: Unified Reverse Proxy (Port 80/443)
+  # NGINX: Unified Reverse Proxy
   # Routes /api and /storage to backend, all other routes to frontend Next.js
   # ============================================================================
   nginx:
     image: ${NGINX_IMAGE:-ghcr.io/wildan190/moc_test/nginx:alpine}
     container_name: resto_production_nginx
     restart: always
+    expose:
+      - "80"
     ports:
-      - "${HTTP_PORT:-80}:80"
-      - "${HTTPS_PORT:-443}:443"
+      - "${HTTP_PORT:-8080}:80"
     volumes:
       - backend_public_storage:/var/www/public/storage:ro
     depends_on:
