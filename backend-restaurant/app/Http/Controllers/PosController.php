@@ -142,7 +142,7 @@ class PosController extends Controller
     public function reservations(Request $request, \App\Services\RestaurantService $restaurantService): JsonResponse
     {
         $restaurantService->processDueReservations();
-        $query = DB::table('pos_reservations')->join('pos_reservation_spaces', 'pos_reservations.space_id', '=', 'pos_reservation_spaces.id')->select('pos_reservations.*', 'pos_reservation_spaces.name as space_name', 'pos_reservation_spaces.capacity as space_capacity')->orderBy('reservation_date')->orderBy('start_time');
+        $query = DB::table('pos_reservations')->join('pos_reservation_spaces', 'pos_reservations.space_id', '=', 'pos_reservation_spaces.id')->select('pos_reservations.*', 'pos_reservation_spaces.name as space_name', 'pos_reservation_spaces.capacity as space_capacity', 'pos_reservation_spaces.table_id')->orderBy('reservation_date')->orderBy('start_time');
         if ($request->filled('date')) $query->whereDate('reservation_date', $request->query('date'));
         if ($request->filled('outlet_id')) $query->where('pos_reservations.outlet_id', $request->query('outlet_id'));
         return response()->json($query->get());
