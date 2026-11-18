@@ -46,7 +46,6 @@ services:
 
   # ============================================================================
   # BACKEND: Laravel PHP 8.4-FPM
-  # Prebuilt via GitHub Actions (Zero server build overhead)
   # ============================================================================
   backend:
     image: ${CONTAINER_REGISTRY:-ghcr.io}/${GITHUB_REPOSITORY:-wildan190/moc_test}/backend:${IMAGE_TAG:-latest}
@@ -78,6 +77,13 @@ services:
     volumes:
       - backend_storage:/var/www/storage
       - backend_public_storage:/var/www/public/storage
+    healthcheck:
+      # Cek PHP-FPM menerima koneksi di port 9000
+      test: ["CMD-SHELL", "php -r 'exit(@fsockopen(\"127.0.0.1\", 9000) ? 0 : 1);'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     depends_on:
       postgres:
         condition: service_healthy
@@ -88,7 +94,6 @@ services:
 
   # ============================================================================
   # QUEUE WORKER: Laravel Background Worker (Redis)
-  # Uses the exact same prebuilt backend image, zero server compilation overhead
   # ============================================================================
   queue-worker:
     image: ${CONTAINER_REGISTRY:-ghcr.io}/${GITHUB_REPOSITORY:-wildan190/moc_test}/backend:${IMAGE_TAG:-latest}
@@ -113,9 +118,16 @@ services:
       QUEUE_CONNECTION: redis
     volumes:
       - backend_storage:/var/www/storage
+    healthcheck:
+      # Pastikan proses queue:work masih berjalan
+      test: ["CMD-SHELL", "pgrep -f 'artisan queue:work' > /dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     depends_on:
       backend:
-        condition: service_started
+        condition: service_healthy
       redis:
         condition: service_healthy
     networks:
@@ -123,7 +135,6 @@ services:
 
   # ============================================================================
   # FRONTEND: Next.js (Standalone Multi-stage Runner)
-  # Prebuilt via GitHub Actions, minimal alpine image (< 180MB)
   # ============================================================================
   frontend:
     image: ${CONTAINER_REGISTRY:-ghcr.io}/${GITHUB_REPOSITORY:-wildan190/moc_test}/frontend:${IMAGE_TAG:-latest}
@@ -132,20 +143,27 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
+      HOSTNAME: 0.0.0.0
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://api-dishy.phoenixtech.web.id/api}
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-https://dishy.phoenixtech.web.id}
       NEXT_PUBLIC_PIESOCKET_CLUSTER_ID: ${PIESOCKET_CLUSTER_ID:-free.blr2}
       NEXT_PUBLIC_PIESOCKET_API_KEY: ${PIESOCKET_API_KEY:-F6y6bNEzxhFn3gkxubwElu1KPdFHuRKzICDsfPO9}
       NEXT_PUBLIC_PIESOCKET_CHANNEL_ID: ${PIESOCKET_CHANNEL_ID:-1}
       NEXT_PUBLIC_PIESOCKET_WS_URL: ${NEXT_PUBLIC_PIESOCKET_WS_URL:-wss://free.blr2.piesocket.com/v3/1?api_key=F6y6bNEzxhFn3gkxubwElu1KPdFHuRKzICDsfPO9&notify_self=1}
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://127.0.0.1:3000/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     networks:
       - resto_production_net
 
   # ============================================================================
   # NGINX: Unified Reverse Proxy
-  # Routes /api and /storage to backend, all other routes to frontend Next.js
   # ============================================================================
   nginx:
     image: ${NGINX_IMAGE:-ghcr.io/wildan190/moc_test/nginx:alpine}
@@ -157,9 +175,17 @@ services:
       - SERVICE_FQDN_NGINX_80=${SERVICE_FQDN_NGINX_80:-https://dishy.phoenixtech.web.id,https://api-dishy.phoenixtech.web.id}
     volumes:
       - backend_public_storage:/var/www/public/storage:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://127.0.0.1:80/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     depends_on:
-      - frontend
-      - backend
+      frontend:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
     networks:
       - resto_production_net
 
