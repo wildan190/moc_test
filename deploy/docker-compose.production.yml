@@ -78,7 +78,6 @@ services:
       - backend_storage:/var/www/storage
       - backend_public_storage:/var/www/public/storage
     healthcheck:
-      # Cek PHP-FPM menerima koneksi di port 9000
       test: ["CMD-SHELL", "php -r 'exit(@fsockopen(\"127.0.0.1\", 9000) ? 0 : 1);'"]
       interval: 10s
       timeout: 5s
@@ -119,7 +118,6 @@ services:
     volumes:
       - backend_storage:/var/www/storage
     healthcheck:
-      # Pastikan proses queue:work masih berjalan
       test: ["CMD-SHELL", "pgrep -f 'artisan queue:work' > /dev/null || exit 1"]
       interval: 15s
       timeout: 5s
@@ -189,6 +187,126 @@ services:
     networks:
       - resto_production_net
 
+  # ============================================================================
+  # METRICS: cAdvisor (container metrics exporter)
+  # ============================================================================
+  cadvisor:
+    image: ${CADVISOR_IMAGE:-gcr.io/cadvisor/cadvisor:v0.49.1}
+    container_name: resto_production_cadvisor
+    restart: always
+    privileged: true
+    command:
+      - --docker_only=true
+      - --housekeeping_interval=30s
+      - --store_container_labels=false
+    devices:
+      - /dev/kmsg
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://127.0.0.1:8080/healthz || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - resto_production_net
+
+  # ============================================================================
+  # METRICS: Prometheus (scrape & storage)
+  # ============================================================================
+  prometheus:
+    image: ${PROMETHEUS_IMAGE:-prom/prometheus:v2.55.1}
+    container_name: resto_production_prometheus
+    restart: always
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+      - --web.enable-lifecycle
+    configs:
+      - source: prometheus_config
+        target: /etc/prometheus/prometheus.yml
+    volumes:
+      - prometheus_data:/prometheus
+    expose:
+      - "9090"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://127.0.0.1:9090/-/healthy || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    depends_on:
+      cadvisor:
+        condition: service_healthy
+    networks:
+      - resto_production_net
+
+  # ============================================================================
+  # METRICS: Grafana (dashboard)
+  # ============================================================================
+  grafana:
+    image: ${GRAFANA_IMAGE:-grafana/grafana:11.3.0}
+    container_name: resto_production_grafana
+    restart: always
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SERVER_ROOT_URL: ${GRAFANA_URL:-https://grafana-dishy.phoenixtech.web.id}
+      SERVICE_FQDN_GRAFANA_3000: ${GRAFANA_URL:-https://grafana-dishy.phoenixtech.web.id}
+    configs:
+      - source: grafana_datasource
+        target: /etc/grafana/provisioning/datasources/prometheus.yml
+    volumes:
+      - grafana_data:/var/lib/grafana
+    expose:
+      - "3000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://127.0.0.1:3000/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    networks:
+      - resto_production_net
+
+# ==============================================================================
+# Inline configs (butuh Docker Compose v2.23+)
+# ==============================================================================
+configs:
+  prometheus_config:
+    content: |
+      global:
+        scrape_interval: 15s
+        evaluation_interval: 15s
+      scrape_configs:
+        - job_name: prometheus
+          static_configs:
+            - targets: ["localhost:9090"]
+        - job_name: cadvisor
+          static_configs:
+            - targets: ["cadvisor:8080"]
+  grafana_datasource:
+    content: |
+      apiVersion: 1
+      datasources:
+        - name: Prometheus
+          type: prometheus
+          access: proxy
+          url: http://prometheus:9090
+          isDefault: true
+
 # ==============================================================================
 # Persistent Volumes
 # ==============================================================================
@@ -201,6 +319,10 @@ volumes:
     name: resto_backend_storage
   backend_public_storage:
     name: resto_backend_public_storage
+  prometheus_data:
+    name: resto_prometheus_data
+  grafana_data:
+    name: resto_grafana_data
 
 # ==============================================================================
 # Isolated Production Network
