@@ -240,7 +240,7 @@ jobs:
             echo "::warning ::Secret COOLIFY_DEPLOY_KEY belum diset. Memanggil webhook tanpa header Authorization..."
           fi
 
-          http_response=$(curl -sS -w "\n%{http_code}" -X GET "${AUTH_ARGS[@]}" "$CLEAN_WEBHOOK" 2>&1) || curl_exit=$?
+          http_response=$(curl -sS -w "\n%{http_code}" -X POST "${AUTH_ARGS[@]}" -H "Content-Type: application/json" "$CLEAN_WEBHOOK" 2>&1) || curl_exit=$?
           
           if [ "${curl_exit:-0}" -ne 0 ]; then
             echo "::error ::Gagal menghubungi Coolify (curl exit code: $curl_exit). Pesan error: $http_response"
@@ -258,21 +258,3 @@ jobs:
             echo "::error ::Coolify returned HTTP $http_code. Response: $body. Periksa COOLIFY_DEPLOY_KEY atau UUID webhook."
             exit 1
           fi
-
-      # Option B: Fallback Deploy via SSH (if SERVER_HOST is configured and Coolify webhook not used)
-      - name: SSH and Deploy on Server
-        if: failure() && env.SERVER_HOST != ''
-        env:
-          SERVER_HOST: ${{ secrets.SERVER_HOST }}
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          port: ${{ secrets.SERVER_PORT || 22 }}
-          script: |
-            cd ${{ secrets.SERVER_DEPLOY_PATH || '/var/www/restaurant' }}
-            git pull origin main || git pull origin master
-            export IMAGE_TAG=${{ github.sha }}
-            chmod +x deploy.sh
-            ./deploy.sh
