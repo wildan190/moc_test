@@ -2,6 +2,7 @@
 # Coolify Production Docker Compose (deploy/docker-compose.coolify.yml)
 # Optimized for Coolify v4 (Traefik / Caddy Reverse Proxy & Auto SSL)
 # Uses pre-built images from GitHub Actions (Zero server build CPU/RAM overhead)
+# Lightweight configuration: CPU <= 0.5 per service, RAM <= 384MB (under 600MB)
 # ==============================================================================
 
 services:
@@ -14,6 +15,11 @@ services:
     image: ${NGINX_IMAGE:-ghcr.io/wildan190/moc_test/nginx:alpine}
     container_name: resto_coolify_nginx
     restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 64M
     expose:
       - "80"
     volumes:
@@ -34,11 +40,20 @@ services:
     image: ${CONTAINER_REGISTRY:-ghcr.io}/${GITHUB_REPOSITORY:-wildan190/moc_test}/frontend:${IMAGE_TAG:-latest}
     container_name: resto_coolify_frontend
     restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 384M
+        reservations:
+          cpus: '0.10'
+          memory: 128M
     expose:
       - "3000"
     environment:
       NODE_ENV: production
       PORT: 3000
+      NODE_OPTIONS: "--max-old-space-size=256"
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://api-dishy.phoenixtech.web.id/api}
       NEXT_PUBLIC_APP_URL: ${APP_URL:-https://dishy.phoenixtech.web.id}
       NEXT_PUBLIC_PIESOCKET_CLUSTER_ID: ${PIESOCKET_CLUSTER_ID:-free.blr2}
@@ -57,6 +72,14 @@ services:
     image: ${CONTAINER_REGISTRY:-ghcr.io}/${GITHUB_REPOSITORY:-wildan190/moc_test}/backend:${IMAGE_TAG:-latest}
     container_name: resto_coolify_backend
     restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 384M
+        reservations:
+          cpus: '0.10'
+          memory: 128M
     expose:
       - "9000"
     environment:
@@ -100,7 +123,12 @@ services:
     image: ${CONTAINER_REGISTRY:-ghcr.io}/${GITHUB_REPOSITORY:-wildan190/moc_test}/backend:${IMAGE_TAG:-latest}
     container_name: resto_coolify_queue_worker
     restart: always
-    command: php artisan queue:work redis --sleep=3 --tries=3 --max-time=3600 --timeout=90
+    command: php artisan queue:work redis --sleep=3 --tries=3 --max-time=3600 --timeout=90 --memory=96
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
     environment:
       APP_ENV: production
       APP_DEBUG: ${APP_DEBUG:-false}
@@ -137,8 +165,13 @@ services:
     command: >
       redis-server
       --appendonly yes
-      --maxmemory 256mb
+      --maxmemory 64mb
       --maxmemory-policy allkeys-lru
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 96M
     volumes:
       - redis_data:/data
     healthcheck:
@@ -157,6 +190,19 @@ services:
     image: ${POSTGRES_IMAGE:-ghcr.io/wildan190/moc_test/postgres:18-alpine}
     container_name: resto_coolify_postgres
     restart: always
+    command: >
+      postgres
+      -c shared_buffers=64MB
+      -c max_connections=50
+      -c work_mem=4MB
+      -c maintenance_work_mem=32MB
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 256M
+        reservations:
+          memory: 64M
     environment:
       POSTGRES_USER: ${DB_USERNAME:-root}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-manchester}

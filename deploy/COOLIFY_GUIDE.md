@@ -50,14 +50,14 @@ NEXT_PUBLIC_API_URL=/api
 NEXT_PUBLIC_APP_URL=https://resto.domainanda.com
 ```
 
-#### 5. Ambil Webhook URL untuk CI/CD Otomatis
-- Di halaman aplikasi Coolify Anda, buka tab **Webhooks**.
-- Salin **Deploy Webhook** (contoh: `https://coolify.domainanda.com/api/v1/deploy?uuid=xxxxxx`).
+#### 5. Tambahkan Secret di GitHub Repository
 - Masuk ke GitHub Repository Anda:
   - Buka **Settings** > **Secrets and variables** > **Actions**.
   - Klik **New repository secret**.
-  - Name: `COOLIFY_WEBHOOK_URL`
-  - Value: *(Paste URL Webhook Coolify tadi)*.
+  - Name: `COOLIFY_DEPLOY_KEY`
+  - Value: *(API token dari Coolify: Keys & Tokens > API Keys)*.
+  - (Opsional jika ingin mengganti webhook default) Name: `COOLIFY_WEBHOOK_URL`
+  - Value: `https://coolify.phoenixtech.web.id/api/v1/deploy?uuid=oo9rzr6qzzjjfzqfqstcadlz&force=false`
 
 #### 6. Pastikan Image di GitHub Packages Bersifat Public (Agar Coolify bisa pull)
 Secara default, paket baru di GitHub bersifat private. Agar server Coolify bisa mendownload image tanpa perlu token login:

@@ -41,21 +41,30 @@ RUN apk add --no-cache \
 # Install Composer
 COPY --from=composer:2.8 /usr/bin/composer /usr/bin/composer
 
-# Production PHP & Opcache settings
+# Production PHP & Opcache settings (Low Resource / VPS Optimized)
 RUN { \
     echo 'opcache.enable=1'; \
     echo 'opcache.enable_cli=1'; \
-    echo 'opcache.memory_consumption=128'; \
-    echo 'opcache.interned_strings_buffer=16'; \
-    echo 'opcache.max_accelerated_files=20000'; \
+    echo 'opcache.memory_consumption=64'; \
+    echo 'opcache.interned_strings_buffer=8'; \
+    echo 'opcache.max_accelerated_files=10000'; \
     echo 'opcache.revalidate_freq=0'; \
     echo 'opcache.validate_timestamps=0'; \
     echo 'opcache.fast_shutdown=1'; \
-    echo 'upload_max_filesize=64M'; \
-    echo 'post_max_size=64M'; \
-    echo 'memory_limit=256M'; \
+    echo 'upload_max_filesize=32M'; \
+    echo 'post_max_size=32M'; \
+    echo 'memory_limit=128M'; \
     echo 'expose_php=Off'; \
 } > /usr/local/etc/php/conf.d/production.ini
+
+# PHP-FPM pool optimization for low-memory VPS (pm = ondemand, max 4 workers)
+RUN { \
+    echo '[www]'; \
+    echo 'pm = ondemand'; \
+    echo 'pm.max_children = 4'; \
+    echo 'pm.process_idle_timeout = 10s'; \
+    echo 'pm.max_requests = 200'; \
+} > /usr/local/etc/php-fpm.d/zz-low-resource.conf
 
 # Copy application source
 COPY . .

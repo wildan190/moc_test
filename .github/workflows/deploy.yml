@@ -2,7 +2,7 @@ name: CI/CD Pipeline - Production Build & Deploy (Coolify Ready)
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, dev]
   pull_request:
     branches: [main, master]
   workflow_dispatch:
@@ -133,7 +133,7 @@ jobs:
   build-and-push:
     name: 🐳 Build & Push Docker Images (GHCR)
     needs: [backend-test, frontend-test]
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/dev')) || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
 
     steps:
@@ -208,22 +208,22 @@ jobs:
   deploy:
     name: 🚀 Deploy to Coolify / Production
     needs: [build-and-push]
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/dev')) || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
 
     steps:
-      # Option A: Trigger Deployment via Coolify Webhook (Recommended & Easiest)
+      # Option A: Trigger Deployment via Coolify Webhook / API
       - name: Trigger Coolify Webhook
-        if: env.COOLIFY_WEBHOOK != ''
         env:
-          COOLIFY_WEBHOOK: ${{ secrets.COOLIFY_WEBHOOK_URL }}
+          COOLIFY_DEPLOY_KEY: ${{ secrets.COOLIFY_DEPLOY_KEY }}
+          COOLIFY_WEBHOOK_URL: ${{ secrets.COOLIFY_WEBHOOK_URL }}
         run: |
           echo "Triggering deployment in Coolify..."
           
-          # Trim whitespace from webhook URL
-          CLEAN_WEBHOOK=$(echo "$COOLIFY_WEBHOOK" | xargs)
+          DEFAULT_WEBHOOK="https://coolify.phoenixtech.web.id/api/v1/deploy?uuid=oo9rzr6qzzjjfzqfqstcadlz&force=false"
+          WEBHOOK_URL="${COOLIFY_WEBHOOK_URL:-$DEFAULT_WEBHOOK}"
+          CLEAN_WEBHOOK=$(echo "$WEBHOOK_URL" | xargs)
           
-          # Extract host for diagnostic check
           TARGET_HOST=$(echo "$CLEAN_WEBHOOK" | awk -F[/:] '{print $4}')
           echo "Connecting to host: $TARGET_HOST"
 
@@ -232,14 +232,18 @@ jobs:
             exit 1
           fi
 
-          # Execute curl with detailed error capture
-          http_response=$(curl -sS -w "\n%{http_code}" -X GET "$CLEAN_WEBHOOK" 2>&1) || curl_exit=$?
+          AUTH_ARGS=()
+          if [ -n "$COOLIFY_DEPLOY_KEY" ]; then
+            echo "Menggunakan secret COOLIFY_DEPLOY_KEY (Bearer authentication)..."
+            AUTH_ARGS=(-H "Authorization: Bearer $COOLIFY_DEPLOY_KEY")
+          else
+            echo "::warning ::Secret COOLIFY_DEPLOY_KEY belum diset. Memanggil webhook tanpa header Authorization..."
+          fi
+
+          http_response=$(curl -sS -w "\n%{http_code}" -X GET "${AUTH_ARGS[@]}" "$CLEAN_WEBHOOK" 2>&1) || curl_exit=$?
           
           if [ "${curl_exit:-0}" -ne 0 ]; then
             echo "::error ::Gagal menghubungi Coolify (curl exit code: $curl_exit). Pesan error: $http_response"
-            echo "Troubleshooting:"
-            echo "1. Pastikan domain/IP '$TARGET_HOST' bisa diakses dari internet publik."
-            echo "2. Periksa apakah ada salah ketik di GitHub Secret COOLIFY_WEBHOOK_URL."
             exit $curl_exit
           fi
 
@@ -251,14 +255,14 @@ jobs:
           if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
             echo "✅ Coolify deployment triggered successfully (HTTP $http_code)!"
           else
-            echo "::warning ::Coolify returned HTTP $http_code. Periksa token atau UUID webhook Coolify."
+            echo "::error ::Coolify returned HTTP $http_code. Response: $body. Periksa COOLIFY_DEPLOY_KEY atau UUID webhook."
+            exit 1
           fi
 
-      # Option B: Fallback Deploy via SSH (if SERVER_HOST is configured and no Coolify webhook)
+      # Option B: Fallback Deploy via SSH (if SERVER_HOST is configured and Coolify webhook not used)
       - name: SSH and Deploy on Server
-        if: env.COOLIFY_WEBHOOK == '' && env.SERVER_HOST != ''
+        if: failure() && env.SERVER_HOST != ''
         env:
-          COOLIFY_WEBHOOK: ${{ secrets.COOLIFY_WEBHOOK_URL }}
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -272,11 +276,3 @@ jobs:
             export IMAGE_TAG=${{ github.sha }}
             chmod +x deploy.sh
             ./deploy.sh
-
-      - name: Informative Notice if No Deploy Trigger Configured
-        if: env.COOLIFY_WEBHOOK == '' && env.SERVER_HOST == ''
-        env:
-          COOLIFY_WEBHOOK: ${{ secrets.COOLIFY_WEBHOOK_URL }}
-          SERVER_HOST: ${{ secrets.SERVER_HOST }}
-        run: |
-          echo "::notice ::Pre-built Docker images were successfully pushed to GitHub Container Registry (ghcr.io). To enable automatic deployment to Coolify, add COOLIFY_WEBHOOK_URL in repository secrets (Settings > Secrets and variables > Actions)."
