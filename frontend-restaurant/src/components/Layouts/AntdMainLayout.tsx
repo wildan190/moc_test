@@ -48,21 +48,25 @@ export default function AntdMainLayout({
     },
   ];
 
-  const brandHeader = (
+  const brandHeader = (compact = false) => (
     <div
       style={{
         height: 64,
         display: "flex",
         alignItems: "center",
-        padding: "0 18px",
+        justifyContent: compact ? "center" : "flex-start",
+        padding: compact ? 0 : "0 18px",
         gap: 10,
         borderBottom: "1px solid #f0f0f0",
+        overflow: "hidden",
+        whiteSpace: "nowrap",
       }}
     >
       <div
         style={{
           width: 32,
           height: 32,
+          flex: "0 0 32px",
           borderRadius: 8,
           background: "#1677ff",
           display: "flex",
@@ -75,14 +79,25 @@ export default function AntdMainLayout({
       >
         P
       </div>
-      <div>
-        <Title level={5} style={{ margin: 0, lineHeight: 1.2 }}>
-          PADA Resto
-        </Title>
-        <Text type="secondary" style={{ fontSize: 11 }}>
-          Sistem Operasional
-        </Text>
-      </div>
+      {!compact && (
+        <div style={{ minWidth: 0 }}>
+          <Title
+            level={5}
+            style={{
+              margin: 0,
+              lineHeight: 1.2,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
+            PADA Resto
+          </Title>
+          <Text type="secondary" style={{ fontSize: 11 }}>
+            Sistem Operasional
+          </Text>
+        </div>
+      )}
     </div>
   );
 
@@ -95,19 +110,21 @@ export default function AntdMainLayout({
         onCollapse={(value) => setCollapsed(value)}
         theme="light"
         width={240}
+        collapsedWidth={80}
         style={{
           height: "100vh",
           position: "sticky",
           top: 0,
           left: 0,
-          overflow: "auto",
+          overflowX: "hidden",
+          overflowY: "auto",
           borderRight: "1px solid #f0f0f0",
           boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
           zIndex: 100,
           display: isMobile ? "none" : undefined,
         }}
       >
-        {brandHeader}
+        {brandHeader(collapsed)}
 
         <Menu
           mode="inline"
@@ -125,7 +142,7 @@ export default function AntdMainLayout({
         styles={{ body: { padding: 0 } }}
         size={250}
       >
-        {brandHeader}
+        {brandHeader()}
         <Menu
           mode="inline"
           selectedKeys={[selectedKey]}
@@ -134,7 +151,7 @@ export default function AntdMainLayout({
         />
       </Drawer>
 
-      <Layout style={{ minWidth: 0, overflowX: "hidden" }}>
+      <Layout style={{ minWidth: 0, overflowX: "hidden", paddingTop: 64 }}>
         <Header
           style={{
             padding: isSmall ? "0 12px" : "0 20px",
@@ -144,9 +161,12 @@ export default function AntdMainLayout({
             alignItems: "center",
             justifyContent: "space-between",
             height: 64,
-            position: "sticky",
+            position: "fixed",
             top: 0,
+            left: isMobile ? 0 : collapsed ? 80 : 240,
+            right: 0,
             zIndex: 99,
+            transition: "left 0.2s",
           }}
         >
           <Space align="center" size={8} style={{ minWidth: 0, overflow: "hidden" }}>
@@ -204,4 +224,3 @@ export default function AntdMainLayout({
     </Layout>
   );
 }
-
