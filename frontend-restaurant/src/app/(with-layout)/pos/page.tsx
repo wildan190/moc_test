@@ -41,6 +41,7 @@ import {
   TeamOutlined,
   CalendarOutlined,
   PlusOutlined,
+  MinusOutlined,
   SearchOutlined,
   UploadOutlined,
   DeleteOutlined,
@@ -942,9 +943,18 @@ export default function PosPage() {
                               </div>
                             </div>
 
-                            <Space size="small">
+                            <Space size={4} align="center">
                               <Button
                                 size="small"
+                                icon={<MinusOutlined />}
+                                style={{
+                                  width: 28,
+                                  height: 28,
+                                  padding: 0,
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                }}
                                 onClick={() =>
                                   setCart((items) =>
                                     items.flatMap((l) =>
@@ -961,16 +971,30 @@ export default function PosPage() {
                                     )
                                   )
                                 }
+                              />
+                              <Text
+                                strong
+                                style={{
+                                  display: "inline-block",
+                                  width: 24,
+                                  textAlign: "center",
+                                }}
                               >
-                                -
-                              </Button>
-                              <Text strong>{item.quantity}</Text>
+                                {item.quantity}
+                              </Text>
                               <Button
                                 size="small"
+                                icon={<PlusOutlined />}
+                                style={{
+                                  width: 28,
+                                  height: 28,
+                                  padding: 0,
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                }}
                                 onClick={() => addToCart(item.product)}
-                              >
-                                +
-                              </Button>
+                              />
                             </Space>
 
                             <Text strong style={{ minWidth: 70, textAlign: "right" }}>
